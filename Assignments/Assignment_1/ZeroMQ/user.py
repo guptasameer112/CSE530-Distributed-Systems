@@ -63,7 +63,8 @@ class User:
         socket.connect("tcp://" + group_ip + ":" + str(group_port))
         message = {
             "type": "get_messages",
-            "user_id": self.user_id
+            "user_id": self.user_id,
+            "date": "00:00:00"
         }
         socket.send_json(message)
         messages = socket.recv_json()
@@ -72,9 +73,19 @@ class User:
 
 if __name__ == "__main__":
     user1 = User("localhost", "001")
-    # user1.get_group_list()
-    user1.join_group("group1", "localhost", 6001)
-    user1.send_message("group1", "localhost", 6001, "Hello, everyone!")
-    user1.get_messages("group1", "localhost", 6001)
-    user1.leave_group("group1", "localhost", 6001)
+    user2 = User("localhost", "002")
 
+    user1.get_group_list()
+    user2.get_group_list()
+
+    user1.join_group("group1", "localhost", 6001)
+    user2.join_group("group1", "localhost", 6001)
+
+    # user1.send_message("group1", "localhost", 6001, "Hello, everyone from user1!")
+    # user2.send_message("group1", "localhost", 6001, "Hello, everyone from user2!")
+
+    # user1.get_messages("group1", "localhost", 6001)
+    user2.get_messages("group1", "localhost", 6001)
+
+    user1.leave_group("group1", "localhost", 6001)
+    user2.leave_group("group1", "localhost", 6001)
