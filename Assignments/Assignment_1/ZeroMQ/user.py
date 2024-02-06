@@ -1,71 +1,80 @@
 import zmq
+from pprint import pprint
 
 class User:
-    def __init__(self, user_id, server_address):
+    def __init__(self, user_ip, user_id):
+        self.user_ip = user_ip
         self.user_id = user_id
-        self.server_address = server_address
 
     def get_group_list(self):
         context = zmq.Context()
         socket = context.socket(zmq.REQ)
-        socket.connect(self.server_address)
-        socket.send_json({"action": "get_groups"})
-        response = socket.recv_json()
-        if response["status"] == "success":
-            groups = response["groups"]
-            for group in groups:
-                print(f"{group['group_name']}: {group['ip_address']}:{group['port']}")
-        else:
-            print(f"Failed to fetch group list: {response['message']}")
+        socket.connect("tcp://localhost:6000")
+        message = {
+            "type": "group_list",
+            "user_ip": self.user_ip,
+            "user_id": self.user_id
+        }
+        socket.send_json(message)
+        group_list = socket.recv_json()
+        print("Available groups: ")
+        pprint(group_list)
 
-    def join_group(self, group_name, group_address):
+    def join_group(self, group_name, group_ip, group_port):
         context = zmq.Context()
         socket = context.socket(zmq.REQ)
-        socket.connect(group_address)
-        socket.send_json({"action": "join_group", "group_name": group_name, "user_id": self.user_id})
-        response = socket.recv_json()
-        if response["status"] == "success":
-            print(f"Group prints: JOIN REQUEST FROM {self.user_id} [{group_name}]")
-            print(f"User prints: SUCCESS")
-        else:
-            print(f"Failed to join group {group_name}: {response['message']}")
+        socket.connect("tcp://" + group_ip + ":" + str(group_port))
+        message = {
+            "type": "join_group",
+            "user_id": self.user_id
+        }
+        socket.send_json(message)
+        response = socket.recv_string()
+        print("Server response: ", response)
 
-    def leave_group(self, group_name, group_address):
+    def leave_group(self, group_name, group_ip, group_port):
         context = zmq.Context()
         socket = context.socket(zmq.REQ)
-        socket.connect(group_address)
-        socket.send_json({"action": "leave_group", "group_name": group_name, "user_id": self.user_id})
-        response = socket.recv_json()
-        if response["status"] == "success":
-            print(f"Group prints: LEAVE REQUEST FROM {self.user_id} [{group_name}]")
-            print("User prints: SUCCESS")
-        else:
-            print(f"Failed to leave group {group_name}: {response['message']}")
+        socket.connect("tcp://" + group_ip + ":" + str(group_port))
+        message = {
+            "type": "leave_group",
+            "user_id": self.user_id
+        }
+        socket.send_json(message)
+        response = socket.recv_string()
+        print("Server response: ", response)
 
-    def get_messages(self, group_name, group_address, since_timestamp=None):
+    def send_message(self, group_name, group_ip, group_port, content):
         context = zmq.Context()
         socket = context.socket(zmq.REQ)
-        socket.connect(group_address)
-        request = {"action": "get_messages", "group_name": group_name, "user_id": self.user_id}
-        if since_timestamp:
-            request["since_timestamp"] = since_timestamp
-        socket.send_json(request)
-        response = socket.recv_json()
-        if response["status"] == "success":
-            messages = response["messages"]
-            for message in messages:
-                print(f"{message['timestamp']}: {message['sender_id']} - {message['content']}")
-        else:
-            print(f"Failed to fetch messages from group {group_name}: {response['message']}")
+        socket.connect("tcp://" + group_ip + ":" + str(group_port))
+        message = {
+            "type": "send_message",
+            "sender_id": self.user_id,
+            "content": content
+        }
+        socket.send_json(message)
+        response = socket.recv_string()
+        print("Server response: ", response)
 
-    def send_message(self, group_name, group_address, content):
+    def get_messages(self, group_name, group_ip, group_port):
         context = zmq.Context()
         socket = context.socket(zmq.REQ)
-        socket.connect(group_address)
-        socket.send_json({"action": "send_message", "group_name": group_name, "user_id": self.user_id, "content": content})
-        response = socket.recv_json()
-        if response["status"] == "success":
-            print(f"Group prints: MESSAGE SEND FROM {self.user_id} [{group_name}]")
-            print("User prints: SUCCESS")
-        else:
-            print(f"Failed to send message to group {group_name}: {response['message']}")
+        socket.connect("tcp://" + group_ip + ":" + str(group_port))
+        message = {
+            "type": "get_messages",
+            "user_id": self.user_id
+        }
+        socket.send_json(message)
+        messages = socket.recv_json()
+        print("Messages: ")
+        pprint(messages)
+
+if __name__ == "__main__":
+    user1 = User("localhost", "001")
+    # user1.get_group_list()
+    user1.join_group("group1", "localhost", 6001)
+    user1.send_message("group1", "localhost", 6001, "Hello, everyone!")
+    user1.get_messages("group1", "localhost", 6001)
+    user1.leave_group("group1", "localhost", 6001)
+
