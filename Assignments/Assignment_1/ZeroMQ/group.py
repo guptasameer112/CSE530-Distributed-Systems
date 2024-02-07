@@ -1,5 +1,6 @@
 import zmq
 from datetime import datetime
+import sys
 
 class Group:
     def __init__(self, group_name, group_ip, group_port):
@@ -35,9 +36,8 @@ class Group:
             "group_ip": self.group_ip,
             "group_port": self.group_port
         }
+        print("Sending Request to Server")
         socket.send_json(message)
-
-        # Debug
         response = socket.recv_string()
         print("Server response for register group: ", response)
 
@@ -57,32 +57,32 @@ class Group:
                 user_id = message["user_id"]
                 print("JOIN REQUEST FROM", user_id)
                 self.users.add(user_id)
-                socket.send_string("SUCCESS")
+                socket.send_string("SUCCESS: User joined group")
 
             elif message["type"] == "leave_group":
                 user_id = message["user_id"]
                 print("LEAVE REQUEST FROM", user_id)
                 self.users.remove(user_id)
-                socket.send_string("SUCCESS")
+                socket.send_string("SUCCESS: User left group")
 
             elif message["type"] == "send_message":
                 sender_id = message["sender_id"]
                 content = message["content"]
                 if sender_id not in self.users:
-                    socket.send_string("FAILURE")
+                    socket.send_string("FAILURE: User not in group")
                     print("FAILURE: User not in group")
                     continue
 
                 time = datetime.now().strftime("%H:%M:%S")
                 self.messages.append({"timestamp": time, "sender_id": sender_id, "content": content})
-                socket.send_string("SUCCESS")
+                socket.send_string("SUCCESS: Message sent")
                 print("SUCCESS: Message sent")
 
             elif message["type"] == "get_messages":
                 user_id = message["user_id"]
                 date = message["date"]
                 if user_id not in self.users:
-                    socket.send_string("FAILURE")
+                    socket.send_string("FAILURE: User not in group")
                     print("FAILURE: User not in group")
                     continue
 
@@ -94,6 +94,13 @@ class Group:
                     messages = [message for message in self.messages if datetime.strptime(message["timestamp"], "%H:%M:%S") > date_obj]
                     print(messages)
                 socket.send_json(messages)
+                print("Messages sent to user")
 
 if __name__ == "__main__":
-    group1 = Group("group1", "localhost", 6001)
+    if len(sys.argv) != 4:
+        print("Usage: python script.py <group_name> <group_ip> <group_port>")
+        sys.exit(1)
+    group_name = sys.argv[1]
+    group_ip = sys.argv[2]
+    group_port = int(sys.argv[3])
+    group = Group(group_name, group_ip, group_port)

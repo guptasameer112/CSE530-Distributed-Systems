@@ -1,5 +1,7 @@
 import zmq
 from pprint import pprint
+import uuid
+
 
 class User:
     def __init__(self, user_ip, user_id):
@@ -19,6 +21,7 @@ class User:
         group_list = socket.recv_json()
         print("Available groups: ")
         pprint(group_list)
+        return group_list
 
     def join_group(self, group_name, group_ip, group_port):
         context = zmq.Context()
@@ -57,14 +60,14 @@ class User:
         response = socket.recv_string()
         print("Server response: ", response)
 
-    def get_messages(self, group_name, group_ip, group_port):
+    def get_messages(self, group_name, group_ip, group_port, time):
         context = zmq.Context()
         socket = context.socket(zmq.REQ)
         socket.connect("tcp://" + group_ip + ":" + str(group_port))
         message = {
             "type": "get_messages",
             "user_id": self.user_id,
-            "date": "00:00:00"
+            "date": time
         }
         socket.send_json(message)
         messages = socket.recv_json()
@@ -72,20 +75,74 @@ class User:
         pprint(messages)
 
 if __name__ == "__main__":
-    user1 = User("localhost", "001")
-    user2 = User("localhost", "002")
+    users = []
+    groups = []
 
-    user1.get_group_list()
-    user2.get_group_list()
+    admin_user = User("localhost", "u_00")
+    groups = admin_user.get_group_list()
 
-    user1.join_group("group1", "localhost", 6001)
-    user2.join_group("group1", "localhost", 6001)
+    while True:
+        print("\n1. Create User")
+        print("2. Get Group List")
+        print("3. Join Group")
+        print("4. Leave Group")
+        print("5. Send Message")
+        print("6. Get Messages")
+        print("7. Exit")
 
-    # user1.send_message("group1", "localhost", 6001, "Hello, everyone from user1!")
-    # user2.send_message("group1", "localhost", 6001, "Hello, everyone from user2!")
+        choice = input("Enter your choice: ")
 
-    # user1.get_messages("group1", "localhost", 6001)
-    user2.get_messages("group1", "localhost", 6001)
-
-    user1.leave_group("group1", "localhost", 6001)
-    user2.leave_group("group1", "localhost", 6001)
+        if choice == "1":
+            user = User("localhost", str(uuid.uuid4()))
+            users.append(user)
+            print("User ID:", user.user_id)  # Print the generated user ID
+            print("User created successfully.")
+        elif choice == "2":
+            user_id = input("Enter user ID: ")
+            for user in users:
+                if user.user_id == user_id:
+                    user.get_group_list()
+                    break
+        elif choice == "3":
+            user_id = input("Enter user ID: ")
+            for user in users:
+                if user.user_id == user_id:
+                    group_name = input("Enter group name: ")
+                    group_ip = groups[group_name][0]
+                    group_port = groups[group_name][1]
+                    user.join_group(group_name, group_ip, group_port)
+                    break
+        elif choice == "4":
+            user_id = input("Enter user ID: ")
+            for user in users:
+                if user.user_id == user_id:
+                    group_name = input("Enter group name: ")
+                    group_ip = groups[group_name][0]
+                    group_port = groups[group_name][1]
+                    user.leave_group(group_name, group_ip, group_port)
+                    break
+        elif choice == "5":
+            user_id = input("Enter user ID: ")
+            for user in users:
+                if user.user_id == user_id:
+                    group_name = input("Enter group name: ")
+                    group_ip = groups[group_name][0]
+                    group_port = groups[group_name][1]
+                    content = input("Enter message content: ")
+                    user.send_message(group_name, group_ip, group_port, content)
+                    break
+        elif choice == "6":
+            user_id = input("Enter user ID: ")
+            for user in users:
+                if user.user_id == user_id:
+                    group_name = input("Enter group name: ")
+                    group_ip = groups[group_name][0]
+                    group_port = groups[group_name][1]
+                    time = input("Enter time (HH:MM:SS): ")
+                    user.get_messages(group_name, group_ip, group_port, time)
+                    break
+        elif choice == "7":
+            print("Exiting...")
+            break
+        else:
+            print("Invalid choice. Please try again.")
