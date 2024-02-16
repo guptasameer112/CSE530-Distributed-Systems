@@ -81,3 +81,20 @@ Example: ```python script.py group2 localhost 6002``` <br>
 
 <!-- Question 3-->
 ## Question 3
+
+### Introduction
+Herein, we build the communication archiecture between Youtube Server, Youtubers and Users using RabbitMQ
+
+YoutuberServer is hosted on a cloud instance on GCP, and all communications between youtubers/users and the server happens soley via RabbitMQ (which is also on the remote instance)
+
+### Features
+- Live updates and updates when logged off for users in the form of direct queues whose routes are the user names.
+- Youtubers publishing videos to the youtube server via a direct queue
+- Maintaining all information about subscribers and videos in 2 dictionaries called subscribers which has the YouTuber name as the key and the list of users subscribed as the values and other one is videos, where the YouTuber name is the key and the list of videos are the values
+
+### How to start / Use
+- Currently the IP address are used of the cloud instance where rabbitMQ is deployed, change it to localhost if you want to run all files locally, or adjust IP address accordinly 
+- Note that when Cloud is resumed, the IP address in the three files need to be changed.
+- First run the YoutubeServer file, then you can run the other two in any order with their respective command line inputs
+- All updates will be shown in respective terminals
+- YoutuberServer does NOT take any command line inputs.
