@@ -3,7 +3,51 @@
 
 <!-- Question 1-->
 ## Question 1
+This assignment provides a marketplace service where sellers can register, list, update, and delete items. Buyers can search for items, buy them, add them to a wishlist, and rate them. The system also supports notifications for both sellers and buyers.
 
+### Protobuf Definitions
+
+The `market_services.proto` file defines the data structures and services used for communication between clients and the server. It includes definitions for:
+- Categories of items (e.g., Electronics, Fashion, Others).
+- Requests and responses for seller registration, item selling, updating, deleting, displaying, searching, buying, wishlist management, and item rating.
+- Notification messages for updating clients about important events.
+
+### Server Implementation (`market.py`)
+
+The server uses gRPC for handling remote procedure calls. The `MarketServicer` class implements the market functionalities, including:
+- Seller registration and management.
+- Item listing, updating, and deletion.
+- Handling buy requests and wishlist additions.
+- Rating items and notifying clients about updates.
+
+The server listens on port `50051` and uses a thread pool executor to manage concurrent requests.
+
+### Seller Client Implementation (`seller.py`)
+
+The seller client allows sellers to interact with the marketplace. It supports operations such as:
+- Registering as a seller.
+- Listing new items for sale.
+- Updating and deleting listed items.
+- Displaying all items listed by the seller.
+
+The seller client uses a unique UUID for each seller and a notification server to receive updates from the market server.
+
+### Buyer Client Implementation (`buyer.py`)
+
+The buyer client allows buyers to search for items, make purchases, add items to a wishlist, and rate items. Similar to the seller client, the buyer client also runs a notification server to receive updates.
+
+### Running the Application
+
+To start the market server, run:
+python market.py
+
+To run the seller client, use:
+python seller.py
+
+For the buyer client, execute:
+python buyer.py
+
+Ensure that the server is running before starting the clients. The seller and buyer clients provide interactive menus for performing various operations.
 
 
 <!-- Question 2-->
