@@ -1,37 +1,70 @@
+# <----------- Library Imports ------------>
 import zmq
 
+
+# <----------- Server Class ------------>
 class Server:
     def __init__(self):
-        self.groups = {}  # Dictionary to store group information {group_name: (IP, Port)}
-        
-    def start(self):
+        '''
+            Constructor.
+            groups: Dictionary to store group_name: (group_ip, group_port).
+        '''
+        self.groups = {} 
+
+    def listen(self):
+        '''
+            Listen for incoming requests.
+            Listening port: 6000.
+        '''
         context = zmq.Context()
         socket = context.socket(zmq.REP)
         socket.bind("tcp://*:6000")
-        print("Server started...")
+        print("Server has started listening. \nWaiting for incoming requests..\n\n")
         
+        message_types = ["register_group", "group_list"]
         while True:
             message = socket.recv_json()
-            if message["action"] == "register_group":
-                group_name = message["group_name"]
-                ip_address = message["ip_address"]
-                port = message["port"]
-                print(f"JOIN REQUEST FROM {ip_address} [{group_name}]")
-                if group_name not in self.groups:
-                    self.groups[group_name] = (ip_address, port)
-                    print("Server prints: SUCCESS")
-                    socket.send_json({"status": "success"})
-                else:
-                    print(f"Group server '{group_name}' already registered")
-                    socket.send_json({"status": "error", "message": "Group server already registered"})
-            elif message["action"] == "get_groups":
-                print("Sending group list...")
-                groups_info = [{"group_name": group, "ip_address": ip_address, "port": port} 
-                               for group, (ip_address, port) in self.groups.items()]
-                socket.send_json({"status": "success", "groups": groups_info})
+            print("Server received a message.\n", message, "\n\n")
+
+            # Error Checking
+            if message["type"] not in message_types:
+                print("Invalid Operation.")
+                socket.send_string("Failure: Invalid Operation Demanded.")
+                quit()
+
             else:
-                socket.send_json({"status": "error", "message": "Invalid action"})
+                if message["type"] == "register_group":
+                    '''
+                        Register the group.
+                        group_name: Name of the group.
+                        group_ip: IP of the group.
+                        group_port: Port of the group.
+                    '''
+                    group_name = message["group_name"]
+                    group_ip = message["group_ip"]
+                    group_port = message["group_port"]
+                    print("JOIN REQUEST FROM", group_ip, ":", group_port)
+
+                    if group_name not in self.groups:
+                        self.groups[group_name] = (group_ip, group_port)
+                        socket.send_string("SUCCESS: Group registered successfully.")
+                        print("SUCCESS: Group registered successfully")
+
+                    else:
+                        socket.send_string("FAILURE: Group already exists.")
+                        print("FAILURE: Group already exists")
+
+                elif message["type"] == "group_list":
+                    '''
+                        Send the list of groups to user.
+                    '''
+                    user_ip = message["user_ip"]
+                    user_id = message["user_id"]
+                    print("GROUP LIST REQUEST FROM", user_ip, ":", user_id)
+                    group_list = {group: (ip, port) for group, (ip, port) in self.groups.items()}
+                    socket.send_json(group_list)
+                    print("Group list sent to user.")
 
 if __name__ == "__main__":
     server = Server()
-    server.start()
+    server.listen()

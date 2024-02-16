@@ -1,44 +1,106 @@
 import zmq
+from datetime import datetime
+import sys
 
 class Group:
-    def __init__(self, name, server_address, ip_address, port):
-        self.name = name
-        self.users = set()  # Set to store user IDs
-        self.messages = []  # List to store messages [{timestamp, sender_id, content}]
-        self.server_address = server_address
-        self.ip_address = ip_address
-        self.port = port
-        
+    def __init__(self, group_name, group_ip, group_port):
+        '''
+            Constructor.
+            group_name: Name of the group.
+            group_ip: IP of the group.
+            group_port: Port of the group.
+            users: Set to store the user_ids of the users in the group.
+            messages: List to store the messages sent in the group.
+        '''
+        self.server_address = "tcp://localhost:6000"
+        self.group_name = group_name
+        self.group_ip = group_ip
+        self.group_port = group_port
+        self.users = set()
+        self.messages = [] 
+
+        self.register_group()
+        self.listen_messages()
+
     def register_group(self):
+        '''
+            Register the group with the server.
+        '''
+
         context = zmq.Context()
         socket = context.socket(zmq.REQ)
         socket.connect(self.server_address)
-        socket.send_json({"action": "register_group", "group_name": self.name, "ip_address": self.ip_address, "port": self.port})
-        response = socket.recv_json()
-        if response["status"] == "success":
-            print(f"Group '{self.name}' registered successfully")
-        else:
-            print(f"Failed to register group '{self.name}': {response['message']}")
+        message = {
+            "type": "register_group",
+            "group_name": self.group_name,
+            "group_ip": self.group_ip,
+            "group_port": self.group_port
+        }
+        print("Sending Request to Server")
+        socket.send_json(message)
+        response = socket.recv_string()
+        print("Server response for register group: ", response)
 
-    def join_group(self, user_id):
+    def listen_messages(self):
+        '''
+            Listen for incoming messages.
+        '''
         context = zmq.Context()
-        socket = context.socket(zmq.REQ)
-        response = socket.recv_json()  
-        if user_id not in self.users:
-            self.users.add(user_id)
-            print(f"User {user_id} joined group {self.name}")
-        else:
-            print(f"User {user_id} is already a member of group {self.name}")
+        socket = context.socket(zmq.REP)
+        socket.bind("tcp://*:" + str(self.group_port))
+        print("Listening for messages on port", self.group_port)
 
-    def leave_group(self, user_id):
-        if user_id in self.users:
-            self.users.remove(user_id)
-            print(f"User {user_id} left group {self.name}")
-        else:
-            print(f"User {user_id} is not a member of group {self.name}")
+        while True:
+            message = socket.recv_json()
+            print("Received message: ", message)
+            if message["type"] == "join_group":
+                user_id = message["user_id"]
+                print("JOIN REQUEST FROM", user_id)
+                self.users.add(user_id)
+                socket.send_string("SUCCESS: User joined group")
 
-# Usage example:
-# group = Group("group1", "tcp://localhost:6000", "localhost", 6001)
-# group.register_group()
-# group.join_group("user123")
-# group.leave_group("user123")
+            elif message["type"] == "leave_group":
+                user_id = message["user_id"]
+                print("LEAVE REQUEST FROM", user_id)
+                self.users.remove(user_id)
+                socket.send_string("SUCCESS: User left group")
+
+            elif message["type"] == "send_message":
+                sender_id = message["sender_id"]
+                content = message["content"]
+                if sender_id not in self.users:
+                    socket.send_string("FAILURE: User not in group")
+                    print("FAILURE: User not in group")
+                    continue
+
+                time = datetime.now().strftime("%H:%M:%S")
+                self.messages.append({"timestamp": time, "sender_id": sender_id, "content": content})
+                socket.send_string("SUCCESS: Message sent")
+                print("SUCCESS: Message sent")
+
+            elif message["type"] == "get_messages":
+                user_id = message["user_id"]
+                date = message["date"]
+                if user_id not in self.users:
+                    socket.send_string("FAILURE: User not in group")
+                    print("FAILURE: User not in group")
+                    continue
+
+                print("MESSAGE REQUEST FROM", user_id)
+                if date == "":
+                    messages = self.messages
+                else:
+                    date_obj = datetime.strptime(date, "%H:%M:%S")
+                    messages = [message for message in self.messages if datetime.strptime(message["timestamp"], "%H:%M:%S") > date_obj]
+                    print(messages)
+                socket.send_json(messages)
+                print("Messages sent to user")
+
+if __name__ == "__main__":
+    if len(sys.argv) != 4:
+        print("Usage: python script.py <group_name> <group_ip> <group_port>")
+        sys.exit(1)
+    group_name = sys.argv[1]
+    group_ip = sys.argv[2]
+    group_port = int(sys.argv[3])
+    group = Group(group_name, group_ip, group_port)
