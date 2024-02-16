@@ -10,7 +10,7 @@ def updateSubscription(user_name, subs_string, youtuber_name, channel, connectio
         message += "u" + " " + youtuber_name
 
     channel.basic_publish(exchange='routing', routing_key='usersend', body=message)
-    print(f"Sent Message : {message}")
+    print(f"SUCESS! Sent Message : {message}")
 
 def receiveNotification(user_name, channel):
 
@@ -25,9 +25,14 @@ def receiveNotification(user_name, channel):
 
         print(f"New Video Published by {youtuber} : {video_name}")
 
-    queue = channel.queue_declare(queue='', exclusive=True)
-    channel.queue_bind(exchange='routing', queue=queue.method.queue, routing_key=user_name)
-    channel.basic_consume(queue=queue.method.queue, on_message_callback=callback, auto_ack=True)
+    # queue = channel.queue_declare(queue='', exclusive=True, auto_delete=False)
+    # channel.queue_bind(exchange='routing', queue=queue.method.queue, routing_key=user_name)
+    # channel.basic_consume(queue=queue.method.queue, on_message_callback=callback, auto_ack=True)
+    # channel.start_consuming()
+    channel.queue_declare(queue=user_name, durable=True)
+    # channel.basic_qos(prefetch_count=1)
+    channel.basic_consume(queue=user_name, on_message_callback=callback, auto_ack=True)
+
     channel.start_consuming()
 
 def add_user(user_name, channel, connection):
@@ -37,7 +42,9 @@ def add_user(user_name, channel, connection):
 
 
 
-connection_params = pika.ConnectionParameters('localhost')
+# connection_params = pika.ConnectionParameters('localhost')
+host = '34.172.131.86'
+connection_params = pika.ConnectionParameters(host=host, port=5672, credentials=pika.PlainCredentials('abhay', 'abhay'), virtual_host='/')
 connection = pika.BlockingConnection(connection_params)
 channel = connection.channel()
 channel.exchange_declare(exchange='routing', exchange_type=ExchangeType.direct)

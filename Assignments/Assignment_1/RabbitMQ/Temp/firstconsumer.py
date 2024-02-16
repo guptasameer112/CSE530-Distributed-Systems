@@ -1,23 +1,21 @@
 import pika
-from pika.exchange_type import ExchangeType
+import time
 
-def callback(ch, method, properties, body):
-    print("First Consumer Received %r" % body)
-
-connection_params = pika.ConnectionParameters('localhost')
-
-connection = pika.BlockingConnection(connection_params)
-
+connection = pika.BlockingConnection(
+    pika.ConnectionParameters(host='localhost'))
 channel = connection.channel()
 
-channel.exchange_declare(exchange='pubsub', exchange_type=ExchangeType.fanout)
+channel.queue_declare(queue='task_queue', durable=True)
+print(' [*] Waiting for messages. To exit press CTRL+C')
 
-queue = channel.queue_declare(queue='', exclusive=True)
 
-channel.queue_bind(exchange='pubsub', queue=queue.method.queue)
+def callback(ch, method, properties, body):
+    print(" [x] Received %r" % body.decode())
+    time.sleep(body.count(b'.'))
+    print(" [x] Done")
+    ch.basic_ack(delivery_tag=method.delivery_tag)
 
-channel.basic_consume(queue=queue.method.queue, on_message_callback=callback, auto_ack=True)
-
-print("First Consumer Waiting for Messages")
+channel.basic_qos(prefetch_count=1)
+channel.basic_consume(queue='task_queue', on_message_callback=callback)
 
 channel.start_consuming()
