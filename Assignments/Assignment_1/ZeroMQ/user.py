@@ -11,7 +11,7 @@ class User:
     def get_group_list(self):
         context = zmq.Context()
         socket = context.socket(zmq.REQ)
-        socket.connect("tcp://34.41.214.53:6000")
+        socket.connect("tcp://34.122.148.200:6000")
         message = {
             "type": "group_list",
             "user_ip": self.user_ip,
