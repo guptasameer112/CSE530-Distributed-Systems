@@ -5,7 +5,7 @@ from pika.exchange_type import ExchangeType
 def publishVideo(youtuber_name, video_name):
     
     # connection_params = pika.ConnectionParameters('localhost')
-    host = '34.172.131.86'
+    host = '34.67.41.63'
     connection_params = pika.ConnectionParameters(host=host, port=5672, virtual_host='/', credentials=pika.PlainCredentials('abhay', 'abhay'), )
     connection = pika.BlockingConnection(connection_params)
     channel = connection.channel()

@@ -43,7 +43,7 @@ def add_user(user_name, channel, connection):
 
 
 # connection_params = pika.ConnectionParameters('localhost')
-host = '34.172.131.86'
+host = '34.67.41.63'
 connection_params = pika.ConnectionParameters(host=host, port=5672, credentials=pika.PlainCredentials('abhay', 'abhay'), virtual_host='/')
 connection = pika.BlockingConnection(connection_params)
 channel = connection.channel()
