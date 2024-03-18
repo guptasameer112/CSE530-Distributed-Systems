@@ -15,7 +15,7 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
         # Persistent state
         self.currentTerm = 0
         self.votedFor = None
-        self.log = []
+        self.log = [] # {'term' : term, 'command' : command}
         self.commitLength = 0
 
         #volatile
@@ -88,15 +88,15 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
 
         #  If the candidate's term is greater than the recipient's current term, the recipient becomes a follower in that term (even if it was a leader in a previous term). 
         if request.term > self.currentTerm:
-            self.currentTerm = request.term
+            self.currentTerm = request['term']
             self.currentRole = 'follower'
             self.votedFor = None
 
         # Rule 2: If votedFor is null or candidateId, and candidate’s log is at least as up-to-date as receiver’s log, grant vote
         if (request.term == self.currentTerm) and \
             (self.votedFor is None or self.votedFor == request.candidateId) and \
-                (request.lastLogTerm > self.log[-1].term or
-                 (request.lastLogTerm == self.log[-1].term and request.lastLogIndex >= len(self.log))):
+                (request.lastLogTerm > self.log[-1]['term'] or
+                 (request.lastLogTerm == self.log[-1]['term'] and request.lastLogIndex >= len(self.log))):
             self.votedFor = request.candidateId
             response.term = self.currentTerm
             response.voteGranted = True
@@ -114,9 +114,9 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
                 term=self.currentTerm,
                 candidateId=self.id,
                 lastLogIndex=len(self.log),
-                lastLogTerm=self.log[-1].term if self.log else 0
+                lastLogTerm=self.log[-1]['term'] if self.log else 0
             )
-            response = stub.RequestVote(request)
+            response = self.stub.RequestVote(request)
 
             if self.currentRole == 'candidate' and response.voteGranted and self.currentTerm == response.term:
                 self.votesReceived.add(address)
@@ -129,7 +129,7 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
                     if(addr != address):
                         self.sentLength[addr] = len(self.log)
                         self.ackedLength[addr] = 0
-                        self.replicate(self.id, addr)
+                        self.replicateLOG(self.id, addr) # FILL THIS FUNCTION!!
 
             elif response.term > self.currentTerm:
                 self.currentTerm = response.term
@@ -137,8 +137,135 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
                 self.votedFor = None
                 # CANCEL ELECTION TIMER ?
 
+    # THIS REQUEST TO MESSAGE IS COMING FROM THE CLIENT 
+    def broadcast_message(self, msg):
+        if self.currentRole == 'leader':
+
+            log_record = {'command': msg, 'term': self.currentTerm}
+            self.log.append(log_record)
             
+            self.ackedLength[self.id] = len(self.log)
             
+            for follower_id in self.all_ids:
+                if follower_id != self.id:
+                    self.replicateLog(self.id, follower_id)
+        else:
+            self.forward_to_client(self.currentLeader)  # sFINISH THIS FUNCION: send back the (message?) to the client if the node isnt a leader
+
+    # HEARTBEAT ----> CHANGE/INTERGRATE THIS WITH THE MAIN RUN LOOP
+    def periodically(self, node_id):
+        if self.currentRole == 'leader':
+            for follower_id in self.nodes - {node_id}:
+                self.replicateLog(node_id, follower_id)            
+
+    def replicateLog(self, leaderId, followerId):
+        prefix_len = self.sentLength[followerId]
+    
+        suffix = self.log[prefix_len:]
+        
+        prefix_term = 0
+
+        if prefix_len > 0:
+            prefix_term = self.log[prefix_len - 1]['term']
+        # {'term' : term, 'command' : command}
+        # Send LogRequest message to follower
+            
+        message = raft_pb2.LogRequest(
+            leaderId=leaderId,
+            currentTerm=self.currentTerm,
+            prefixLen=prefix_len,
+            prefixTerm=prefix_term,
+            commitLength=self.commitLength,
+            suffix=suffix
+        )
+
+        response = self.stub.ProcessLog(message)
+
+        # SLIDE 8/9 BELOW HERE: we are using processing the log and getting the response being used in 8/9
+
+        if (response.term == self.currentTerm) and (self.currentRole == self.currentLeader):
+            if (response.success and response.ack >= self.ackedLength[response.follower]):
+                self.sentLength[response.follower] = response.ack
+                self.ackedLength[response.follower] = response.ack
+                CommitLogEntries()
+            elif self.sentLength[response.follower] > 0:
+                self.sentLength[response.follower] = self.sentLength[response.follower] - 1
+                self.replicateLog(self.id, response.follower)
+        
+        elif response.term > self.currentTerm:
+            self.currentTerm = response.term
+            self.currentRole = 'follower'
+            self.votesReceived = None
+            # CANCEL ELECTION TIMER
+
+    def ProcessLog(self, request, context):
+        if request.term > self.currentTerm:
+            self.currentTerm = request.term
+            self.votedFor = None
+            # Cancel election timer
+
+        if request.term == self.currentTerm:
+            self.currentRole = 'follower'
+            self.currentLeader = request.leaderId
+            
+        logOk = (len(self.log) >= request.prefixLen and (self.log[request.prefixLen - 1]['term'] == request.prefixTerm or request.prefixLen == 0))
+
+        if request.term == self.currentTerm and logOk:
+            self.AppendEntries(request.prefixLen, request.commitLength, request.suffix)
+            ack = request.prefixLen + len(request.suffix)
+            return raft_pb2.LogResponse(follower = self.id, term=self.currentTerm,ack = ack, success=True)
+        else:
+            return raft_pb2.LogResponse(follower = self.id, term=self.currentTerm,ack = 0, success=False)
+        
+
+
+    def AppendEntries(self, prefixLen, leaderCommit, suffix):
+        if len(suffix) > 0 and len(self.log) > prefixLen:
+            index = min(len(self.log), prefixLen+len(suffix)) -1 
+
+            if(self.log[index]['term'] != suffix[index-prefixLen]['term']):
+                self.log = self.log[:prefixLen]
+
+        if prefixLen + len(suffix) > len(self.log):
+            for i in range(len(self.log), len(suffix)):
+                self.log.append(suffix[i])
+
+        if leaderCommit > self.commitLength:
+            for i in range(self.commitLength, leaderCommit):
+
+                # DELIVER self.log[i][] TO THE APPLICATION (WRITE TO DUMP FILE)           
+                continue
+
+            self.commitLength = leaderCommit
+
+    
+
+
+
+        
+#         message ReplicateLogRequest {
+#     int32 leaderId = 1;
+#     int32 currentTerm = 2;
+#     int32 prefixLen = 3;
+#     int32 prefixTerm = 4;
+#     int32 commitLength = 5;
+#     repeated Entry suffix = 6;
+# }
+        # message = {
+        #     'type': 'LogRequest',
+        #     'leaderId': leaderId,
+        #     'term': self.currentTerm,
+        #     'prefixLen': prefix_len,
+        #     'prefixTerm': prefix_term,
+        #     'commitLength': self.commitLength,
+        #     'suffix': suffix
+        # }
+
+    
+
+    
+    
+
 
 
     

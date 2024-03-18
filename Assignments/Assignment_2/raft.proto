@@ -5,19 +5,19 @@ message Entry {
     string command = 2;
 }
 
-message AppendEntriesRequest {
-    int32 term = 1;
-    int32 leaderId = 2;
-    int32 prevLogIndex = 3;
-    int32 prevLogTerm = 4;
-    repeated Entry entries = 5;
-    int32 leaderCommit = 6;
-}
+// message AppendEntriesRequest {
+//     int32 term = 1;
+//     int32 leaderId = 2;
+//     int32 prevLogIndex = 3;
+//     int32 prevLogTerm = 4;
+//     repeated Entry entries = 5;
+//     int32 leaderCommit = 6;
+// }
 
-message AppendEntriesResponse {
-    int32 term = 1;
-    bool success = 2;
-}
+// message AppendEntriesResponse {
+//     int32 term = 1;
+//     bool success = 2;
+// }
 
 message RequestVoteRequest {
     int32 term = 1;
@@ -31,9 +31,26 @@ message RequestVoteResponse {
     bool voteGranted = 2;
 }
 
+message LogRequest {
+    int32 leaderId = 1;
+    int32 term = 2;
+    int32 prefixLen = 3;
+    int32 prefixTerm = 4;
+    int32 leaderCommit = 5;
+    repeated Entry suffix = 6;
+}
+
+message LogResponse {
+    int32 follower = 1;
+    int32 term = 2;
+    int32 ack = 3;
+    bool success = 4;
+}
+
 service Raft {
-    rpc AppendEntries(AppendEntriesRequest) returns (AppendEntriesResponse) {}
+    // rpc AppendEntries(AppendEntriesRequest) returns (AppendEntriesResponse) {}
     rpc RequestVote(RequestVoteRequest) returns (RequestVoteResponse) {}
+    rpc ProcessLog(LogRequest) returns (LogResponse) {}
 }
 
 
