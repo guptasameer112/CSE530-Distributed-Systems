@@ -11,12 +11,14 @@ MAJORITY = 3
 class RaftNode(raft_pb2_grpc.RaftServicer):
     def __init__(self, address, port, selfid):
         self.id = selfid
-        self.all_ids = [] # LIST OF ALL IDs
+        self.all_ids = [0,1,2,3,4,5] # LIST OF ALL IDs
+        self.node_addresses = ['localhost:50051', 'localhost:50052', 'localhost:50053', 'localhost:50054', 'localhost:50055']
         # Persistent state
         self.currentTerm = 0
         self.votedFor = None
         self.log = [] # {'term' : term, 'command' : command}
         self.commitLength = 0
+
 
         #volatile
         self.currentRole = 'follower'
@@ -28,71 +30,37 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
         self.election_timeout = self.calculate_election_timeout()
 
         self.channel = grpc.insecure_channel(address)
-        self.stub = raft_pb2_grpc.MarketStub(self.channel)
+        self.stub = raft_pb2_grpc.RaftStub(self.channel)
         self.address = f'{self.get_ip()}:{port}'
+
+    def start(self):
+        while True:
+            if self.currentRole == 'follower':
+                if time.time() > self.election_timeout:
+                    self.currentRole = 'candidate'
+                    self.election_timeout = self.calculate_election_timeout()
+            elif self.currentRole == 'candidate':
+                self.collect_votes()
+                if time.time() > self.election_timeout:
+                    self.election_timeout = self.calculate_election_timeout()
+            elif self.currentRole == 'leader':
+                self.periodically(self.id)
+                # Start heartbeat timer
         
-        # From raft paper
-        # Volatile state
-        # self.commitIndex = 0
-        # self.lastApplied = 0
-        # # Volatile state on leaders
-        # self.nextIndex = {}
-        # self.matchIndex = {}
 
     def calculate_election_timeout(self):
-        # Calculate a random election timeout
-        return time.time() + random.uniform(0.15, 0.3)
-
-    def AppendEntries(self, request, context):
-        response = raft_pb2.AppendEntriesResponse()
-
-        # Update currentTerm if needed
-        if request.term > self.currentTerm:
-            self.currentTerm = request.term
-            self.votedFor = None  # Reset votedFor since term has changed
-
-        # Rule 1: Reply false if term < currentTerm
-        if request.term < self.currentTerm:
-            response.term = self.currentTerm
-            response.success = False
-            return response
-
-        # Rule 2: Reply false if log doesn’t contain an entry at prevLogIndex whose term matches prevLogTerm
-        if len(self.log) < request.prevLogIndex or \
-                (len(self.log) >= request.prevLogIndex and
-                 self.log[request.prevLogIndex - 1].term != request.prevLogTerm):
-            response.term = self.currentTerm
-            response.success = False
-            return response
-
-        # Rule 3: If an existing entry conflicts with a new one, delete the existing entry and all that follow it
-        if len(self.log) > request.prevLogIndex:
-            del self.log[request.prevLogIndex:]
-
-        # Rule 4: Append any new entries not already in the log
-        for entry in request.entries:
-            if entry.term > self.currentTerm:
-                self.currentTerm = entry.term
-            self.log.append(entry)
-
-        # Rule 5: If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)
-        if request.leaderCommit > self.commitIndex:
-            self.commitIndex = min(request.leaderCommit, len(self.log))
-
-        response.term = self.currentTerm
-        response.success = True
-        return response
+        # Calculate a random election timeout between 5 and 10 seconds
+        return time.time() + random.randint(5, 10)
 
     def RequestVote(self, request, context):
         response = raft_pb2.RequestVoteResponse()
 
-        #  If the candidate's term is greater than the recipient's current term, the recipient becomes a follower in that term (even if it was a leader in a previous term). 
         if request.term > self.currentTerm:
             self.currentTerm = request['term']
             self.currentRole = 'follower'
             self.votedFor = None
 
-        # Rule 2: If votedFor is null or candidateId, and candidate’s log is at least as up-to-date as receiver’s log, grant vote
+            
         if (request.term == self.currentTerm) and \
             (self.votedFor is None or self.votedFor == request.candidateId) and \
                 (request.lastLogTerm > self.log[-1]['term'] or
@@ -129,7 +97,7 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
                     if(addr != address):
                         self.sentLength[addr] = len(self.log)
                         self.ackedLength[addr] = 0
-                        self.replicateLOG(self.id, addr) # FILL THIS FUNCTION!!
+                        self.replicateLog(self.id, addr) # FILL THIS FUNCTION!!
 
             elif response.term > self.currentTerm:
                 self.currentTerm = response.term
@@ -138,10 +106,10 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
                 # CANCEL ELECTION TIMER ?
 
     # THIS REQUEST TO MESSAGE IS COMING FROM THE CLIENT 
-    def broadcast_message(self, msg):
+    def broadcast_message(self, request):
         if self.currentRole == 'leader':
 
-            log_record = {'command': msg, 'term': self.currentTerm}
+            log_record = {'command': request, 'term': self.currentTerm}
             self.log.append(log_record)
             
             self.ackedLength[self.id] = len(self.log)
@@ -151,6 +119,32 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
                     self.replicateLog(self.id, follower_id)
         else:
             self.forward_to_client(self.currentLeader)  # sFINISH THIS FUNCION: send back the (message?) to the client if the node isnt a leader
+
+    def ServeClient(self, request, context):
+        if self.currentRole == 'leader':
+            if request.Request.split()[0] == 'SET':
+                self.broadcast_message(request.Request)
+                return raft_pb2.ServeClientReply(Data='Entry Updated', LeaderID=self.currentLeader, Success=True)
+            elif request.Request.split()[0] == 'GET':
+                # SEARCH FOR THE Key IN THE DB
+                pass
+
+        else:
+            return raft_pb2.ServeClientReply(Data=f'Update Leader, LeaderId = {self.currentLeader}', LeaderID=self.currentLeader, Success=False)
+
+        
+
+#         message ServeClientArgs {
+#   string Request = 1;
+# }
+
+# message ServeClientReply {
+#   string Data = 1;
+#   string LeaderID = 2;
+#   bool Success = 3;
+# }
+
+
 
     # HEARTBEAT ----> CHANGE/INTERGRATE THIS WITH THE MAIN RUN LOOP
     def periodically(self, node_id):
@@ -183,11 +177,11 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
 
         # SLIDE 8/9 BELOW HERE: we are using processing the log and getting the response being used in 8/9
 
-        if (response.term == self.currentTerm) and (self.currentRole == self.currentLeader):
+        if (response.term == self.currentTerm) and (self.currentRole == 'leader'):
             if (response.success and response.ack >= self.ackedLength[response.follower]):
                 self.sentLength[response.follower] = response.ack
                 self.ackedLength[response.follower] = response.ack
-                CommitLogEntries()
+                self.CommitLogEntries()
             elif self.sentLength[response.follower] > 0:
                 self.sentLength[response.follower] = self.sentLength[response.follower] - 1
                 self.replicateLog(self.id, response.follower)
@@ -197,6 +191,27 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
             self.currentRole = 'follower'
             self.votesReceived = None
             # CANCEL ELECTION TIMER
+
+    def acks(self, in_len):
+        counter = 0
+        for addrs in self.all_ids:
+            if (self.ackedLength[addrs] >= in_len):
+                counter+=1
+
+        return counter
+
+    def CommitLogEntries(self):
+        minAcks = 3
+        ready = [i for i in range(1, len(self.log)+1) if self.acks(i) >= minAcks]
+        if len(ready) != 0 and max(ready) > self.commitLength and self.log[max(ready)-1]['term'] == self.currentTerm:
+
+            for i in range(self.commitLength, max(ready)):
+
+                # DELIVER self.log[i][] TO THE APPLICATION (WRITE TO DUMP FILE)   
+                continue
+
+            self.commitLength = max(ready)
+    
 
     def ProcessLog(self, request, context):
         if request.term > self.currentTerm:
@@ -227,7 +242,7 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
                 self.log = self.log[:prefixLen]
 
         if prefixLen + len(suffix) > len(self.log):
-            for i in range(len(self.log), len(suffix)):
+            for i in range(len(self.log)-prefixLen, len(suffix)):
                 self.log.append(suffix[i])
 
         if leaderCommit > self.commitLength:
@@ -237,39 +252,8 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
                 continue
 
             self.commitLength = leaderCommit
-
-    
-
-
-
-        
-#         message ReplicateLogRequest {
-#     int32 leaderId = 1;
-#     int32 currentTerm = 2;
-#     int32 prefixLen = 3;
-#     int32 prefixTerm = 4;
-#     int32 commitLength = 5;
-#     repeated Entry suffix = 6;
-# }
-        # message = {
-        #     'type': 'LogRequest',
-        #     'leaderId': leaderId,
-        #     'term': self.currentTerm,
-        #     'prefixLen': prefix_len,
-        #     'prefixTerm': prefix_term,
-        #     'commitLength': self.commitLength,
-        #     'suffix': suffix
-        # }
-
-    
-
-    
-    
-
-
-
-    
-    
+            
+                
 
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))

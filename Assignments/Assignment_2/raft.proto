@@ -5,20 +5,6 @@ message Entry {
     string command = 2;
 }
 
-// message AppendEntriesRequest {
-//     int32 term = 1;
-//     int32 leaderId = 2;
-//     int32 prevLogIndex = 3;
-//     int32 prevLogTerm = 4;
-//     repeated Entry entries = 5;
-//     int32 leaderCommit = 6;
-// }
-
-// message AppendEntriesResponse {
-//     int32 term = 1;
-//     bool success = 2;
-// }
-
 message RequestVoteRequest {
     int32 term = 1;
     int32 candidateId = 2;
@@ -47,10 +33,20 @@ message LogResponse {
     bool success = 4;
 }
 
+message ServeClientArgs {
+    string command = 1;
+  }
+  
+  message ServeClientReply {
+    string Data = 1;
+    string LeaderID = 2;
+    bool Success = 3;
+  }
+
 service Raft {
-    // rpc AppendEntries(AppendEntriesRequest) returns (AppendEntriesResponse) {}
     rpc RequestVote(RequestVoteRequest) returns (RequestVoteResponse) {}
     rpc ProcessLog(LogRequest) returns (LogResponse) {}
+    rpc ServeClient (ServeClientArgs) returns (ServeClientReply) {}
 }
 
 
