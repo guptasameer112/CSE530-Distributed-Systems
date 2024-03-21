@@ -36,11 +36,14 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
         self.channel = None
         self.stub = None
         # self.address = f'{self.get_ip()}:{port}'
+        self.start()
 
     def start(self):
+        print("Starting!!")
         while True:
             if self.currentRole == 'follower':
                 if time.time() > self.election_timeout:
+                    print("election timed out for follower state!")
                     self.currentRole = 'candidate'
                     self.election_timeout = self.calculate_election_timeout()
             elif self.currentRole == 'candidate':
@@ -56,7 +59,7 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
     def calculate_election_timeout(self):
         # Calculate a random election timeout between 5 and 10 seconds
         rand_time = random.randint(5, 10)
-        print("Election startin for", rand_time)
+        print("Restarting timer as ", rand_time)
         return time.time() + rand_time
 
     def RequestVote(self, request, context):
@@ -83,8 +86,6 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
     
 
     def collect_votes(self):
-
-        print("Starting collecting votes")
         
         for address in self.all_ids:
             # Send a RequestVote RPC to each server
@@ -94,9 +95,16 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
                 lastLogIndex=len(self.log),
                 lastLogTerm=self.log[-1]['term'] if self.log else 0
             )
-            self.channel = grpc.insecure_channel(self.node_addresses[address])
-            self.stub = raft_pb2_grpc.RaftStub(self.channel)
-            response = self.stub.RequestVote(request)
+
+            try:
+                self.channel = grpc.insecure_channel(self.node_addresses[address-1])
+                self.stub = raft_pb2_grpc.RaftStub(self.channel)
+                response = self.stub.RequestVote(request)
+
+            except grpc.RpcError as e:
+                self.currentRole = 'follower'
+                self.votedFor = None
+                continue
 
             if self.currentRole == 'candidate' and response.voteGranted and self.currentTerm == response.term:
                 self.votesReceived.add(address)
@@ -250,10 +258,12 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
 
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    raft_pb2_grpc.add_RaftServicer_to_server(RaftNode(1), server)
+    node_obj = RaftNode(1)
+    raft_pb2_grpc.add_RaftServicer_to_server(node_obj, server)
     server.add_insecure_port('[::]:50051')
     server.start()
     server.wait_for_termination()
+    # node_obj.start()
 
 if __name__ == '__main__':
     serve()

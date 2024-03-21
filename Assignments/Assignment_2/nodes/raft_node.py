@@ -3,6 +3,7 @@ import raft_pb2
 import raft_pb2_grpc
 import time
 import random
+import sys
 
 from concurrent import futures
 
@@ -43,7 +44,7 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
         while True:
             if self.currentRole == 'follower':
                 if time.time() > self.election_timeout:
-                    print("election timed out for follower state!")
+                    print("election timed out for follower state", self.id)
                     self.currentRole = 'candidate'
                     self.election_timeout = self.calculate_election_timeout()
             elif self.currentRole == 'candidate':
@@ -64,6 +65,8 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
 
     def RequestVote(self, request, context):
         response = raft_pb2.RequestVoteResponse()
+
+        print(self.id, 'has recieved a vote request from', request.candidateId)
 
         if request.term > self.currentTerm:
             self.currentTerm = request['term']
@@ -100,15 +103,19 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
                 self.channel = grpc.insecure_channel(self.node_addresses[address-1])
                 self.stub = raft_pb2_grpc.RaftStub(self.channel)
                 response = self.stub.RequestVote(request)
+                print("Vote Request RPC sent from", self.id, "to", address)
 
             except grpc.RpcError as e:
+                print(f"{self.id} Failed RPC error ho gaya : {e}")
                 self.currentRole = 'follower'
                 self.votedFor = None
                 continue
 
             if self.currentRole == 'candidate' and response.voteGranted and self.currentTerm == response.term:
+                print(address ,"voted for", self.id)
                 self.votesReceived.add(address)
                 if len(self.votesReceived) >= MAJORITY:
+                    print("bancho im leader:", self.id)
                     self.currentRole = 'leader'
                     self.currentLeader = self.id
                     # CANCEL ELECTION TIMER ?
@@ -258,9 +265,9 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
 
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    node_obj = RaftNode(3)
+    node_obj = RaftNode(int(sys.argv[1]))
     raft_pb2_grpc.add_RaftServicer_to_server(node_obj, server)
-    server.add_insecure_port('[::]:50053')
+    server.add_insecure_port(f'[::]:{sys.argv[2]}')
     server.start()
     server.wait_for_termination()
     # node_obj.start()

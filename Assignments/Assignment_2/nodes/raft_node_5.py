@@ -1,6 +1,6 @@
 import grpc
-import Assignments.Assignment_2.nodes.raft_pb2 as raft_pb2
-import Assignments.Assignment_2.nodes.raft_pb2_grpc as raft_pb2_grpc
+import raft_pb2
+import raft_pb2_grpc
 import time
 import random
 
@@ -8,10 +8,14 @@ from concurrent import futures
 
 MAJORITY = 3
 
+# Log configuration
+MAX_LOG_ENTRIES = 1000  # Maximum number of log entries in the log
+LOG_COMPACT_THRESHOLD = 500  # Log compaction threshold (number of entries)
+
 class RaftNode(raft_pb2_grpc.RaftServicer):
-    def __init__(self, port, selfid):
+    def __init__(self, selfid):
         self.id = selfid
-        self.all_ids = [0,1,2,3,4,5] # LIST OF ALL IDs
+        self.all_ids = [1,2,3,4,5] # LIST OF ALL IDs
         self.node_addresses = ['localhost:50051', 'localhost:50052', 'localhost:50053', 'localhost:50054', 'localhost:50055']
         # Persistent state
         self.currentTerm = 0
@@ -29,14 +33,17 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
 
         self.election_timeout = self.calculate_election_timeout()
 
-        self.channel = grpc.insecure_channel(address)
-        self.stub = raft_pb2_grpc.RaftStub(self.channel)
+        self.channel = None
+        self.stub = None
         # self.address = f'{self.get_ip()}:{port}'
+        self.start()
 
     def start(self):
+        print("Starting!!")
         while True:
             if self.currentRole == 'follower':
                 if time.time() > self.election_timeout:
+                    print("election timed out for follower state!")
                     self.currentRole = 'candidate'
                     self.election_timeout = self.calculate_election_timeout()
             elif self.currentRole == 'candidate':
@@ -44,13 +51,16 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
                 if time.time() > self.election_timeout:
                     self.election_timeout = self.calculate_election_timeout()
             elif self.currentRole == 'leader':
+                time.sleep(1)
                 self.periodically(self.id)
                 # Start heartbeat timer
         
 
     def calculate_election_timeout(self):
         # Calculate a random election timeout between 5 and 10 seconds
-        return time.time() + random.randint(5, 10)
+        rand_time = random.randint(5, 10)
+        print("Restarting timer as ", rand_time)
+        return time.time() + rand_time
 
     def RequestVote(self, request, context):
         response = raft_pb2.RequestVoteResponse()
@@ -76,6 +86,7 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
     
 
     def collect_votes(self):
+        
         for address in self.all_ids:
             # Send a RequestVote RPC to each server
             request = raft_pb2.RequestVoteRequest(
@@ -84,9 +95,16 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
                 lastLogIndex=len(self.log),
                 lastLogTerm=self.log[-1]['term'] if self.log else 0
             )
-            self.channel = grpc.insecure_channel(self.node_addresses[address])
-            self.stub = raft_pb2_grpc.RaftStub(self.channel)
-            response = self.stub.RequestVote(request)
+
+            try:
+                self.channel = grpc.insecure_channel(self.node_addresses[address-1])
+                self.stub = raft_pb2_grpc.RaftStub(self.channel)
+                response = self.stub.RequestVote(request)
+
+            except grpc.RpcError as e:
+                self.currentRole = 'follower'
+                self.votedFor = None
+                continue
 
             if self.currentRole == 'candidate' and response.voteGranted and self.currentTerm == response.term:
                 self.votesReceived.add(address)
@@ -240,10 +258,12 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
 
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    raft_pb2_grpc.add_RaftServicer_to_server(RaftNode(), server)
-    server.add_insecure_port('[::]:50051')
+    node_obj = RaftNode(5)
+    raft_pb2_grpc.add_RaftServicer_to_server(node_obj, server)
+    server.add_insecure_port('[::]:50055')
     server.start()
     server.wait_for_termination()
+    # node_obj.start()
 
 if __name__ == '__main__':
     serve()
