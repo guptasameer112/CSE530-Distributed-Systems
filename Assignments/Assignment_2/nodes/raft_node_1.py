@@ -8,10 +8,14 @@ from concurrent import futures
 
 MAJORITY = 3
 
+# Log configuration
+MAX_LOG_ENTRIES = 1000  # Maximum number of log entries in the log
+LOG_COMPACT_THRESHOLD = 500  # Log compaction threshold (number of entries)
+
 class RaftNode(raft_pb2_grpc.RaftServicer):
-    def __init__(self, address, port, selfid):
+    def __init__(self, selfid):
         self.id = selfid
-        self.all_ids = [0,1,2,3,4,5] # LIST OF ALL IDs
+        self.all_ids = [1,2,3,4,5] # LIST OF ALL IDs
         self.node_addresses = ['localhost:50051', 'localhost:50052', 'localhost:50053', 'localhost:50054', 'localhost:50055']
         # Persistent state
         self.currentTerm = 0
@@ -29,9 +33,9 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
 
         self.election_timeout = self.calculate_election_timeout()
 
-        self.channel = grpc.insecure_channel(address)
-        self.stub = raft_pb2_grpc.RaftStub(self.channel)
-        self.address = f'{self.get_ip()}:{port}'
+        self.channel = None
+        self.stub = None
+        # self.address = f'{self.get_ip()}:{port}'
 
     def start(self):
         while True:
@@ -44,13 +48,16 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
                 if time.time() > self.election_timeout:
                     self.election_timeout = self.calculate_election_timeout()
             elif self.currentRole == 'leader':
+                time.sleep(1)
                 self.periodically(self.id)
                 # Start heartbeat timer
         
 
     def calculate_election_timeout(self):
         # Calculate a random election timeout between 5 and 10 seconds
-        return time.time() + random.randint(5, 10)
+        rand_time = random.randint(5, 10)
+        print("Election startin for", rand_time)
+        return time.time() + rand_time
 
     def RequestVote(self, request, context):
         response = raft_pb2.RequestVoteResponse()
@@ -76,6 +83,9 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
     
 
     def collect_votes(self):
+
+        print("Starting collecting votes")
+        
         for address in self.all_ids:
             # Send a RequestVote RPC to each server
             request = raft_pb2.RequestVoteRequest(
@@ -84,6 +94,8 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
                 lastLogIndex=len(self.log),
                 lastLogTerm=self.log[-1]['term'] if self.log else 0
             )
+            self.channel = grpc.insecure_channel(self.node_addresses[address])
+            self.stub = raft_pb2_grpc.RaftStub(self.channel)
             response = self.stub.RequestVote(request)
 
             if self.currentRole == 'candidate' and response.voteGranted and self.currentTerm == response.term:
@@ -107,18 +119,14 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
 
     # THIS REQUEST TO MESSAGE IS COMING FROM THE CLIENT 
     def broadcast_message(self, request):
-        if self.currentRole == 'leader':
-
-            log_record = {'command': request, 'term': self.currentTerm}
-            self.log.append(log_record)
-            
-            self.ackedLength[self.id] = len(self.log)
-            
-            for follower_id in self.all_ids:
-                if follower_id != self.id:
-                    self.replicateLog(self.id, follower_id)
-        else:
-            self.forward_to_client(self.currentLeader)  # sFINISH THIS FUNCION: send back the (message?) to the client if the node isnt a leader
+        log_record = {'command': request, 'term': self.currentTerm}
+        self.log.append(log_record)
+        
+        self.ackedLength[self.id] = len(self.log)
+        
+        for follower_id in self.all_ids:
+            if follower_id != self.id:
+                self.replicateLog(self.id, follower_id)
 
     def ServeClient(self, request, context):
         if self.currentRole == 'leader':
@@ -131,20 +139,6 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
 
         else:
             return raft_pb2.ServeClientReply(Data=f'Update Leader, LeaderId = {self.currentLeader}', LeaderID=self.currentLeader, Success=False)
-
-        
-
-#         message ServeClientArgs {
-#   string Request = 1;
-# }
-
-# message ServeClientReply {
-#   string Data = 1;
-#   string LeaderID = 2;
-#   bool Success = 3;
-# }
-
-
 
     # HEARTBEAT ----> CHANGE/INTERGRATE THIS WITH THE MAIN RUN LOOP
     def periodically(self, node_id):
@@ -172,7 +166,8 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
             commitLength=self.commitLength,
             suffix=suffix
         )
-
+        self.channel = grpc.insecure_channel(self.node_addresses[followerId])
+        self.stub = raft_pb2_grpc.RaftStub(self.channel)
         response = self.stub.ProcessLog(message)
 
         # SLIDE 8/9 BELOW HERE: we are using processing the log and getting the response being used in 8/9
@@ -206,9 +201,8 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
         if len(ready) != 0 and max(ready) > self.commitLength and self.log[max(ready)-1]['term'] == self.currentTerm:
 
             for i in range(self.commitLength, max(ready)):
-
                 # DELIVER self.log[i][] TO THE APPLICATION (WRITE TO DUMP FILE)   
-                continue
+                print(f'DELIVER self.log[{i}][] TO THE APPLICATION (WRITE TO DUMP FILE)')
 
             self.commitLength = max(ready)
     
@@ -247,9 +241,8 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
 
         if leaderCommit > self.commitLength:
             for i in range(self.commitLength, leaderCommit):
-
                 # DELIVER self.log[i][] TO THE APPLICATION (WRITE TO DUMP FILE)           
-                continue
+                print(f'DELIVER self.log[{i}][] TO THE APPLICATION (WRITE TO DUMP FILE)')
 
             self.commitLength = leaderCommit
             
@@ -257,7 +250,7 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
 
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    raft_pb2_grpc.add_RaftServicer_to_server(RaftNode(), server)
+    raft_pb2_grpc.add_RaftServicer_to_server(RaftNode(1), server)
     server.add_insecure_port('[::]:50051')
     server.start()
     server.wait_for_termination()

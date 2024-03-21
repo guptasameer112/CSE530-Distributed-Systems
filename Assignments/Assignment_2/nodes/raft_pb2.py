@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n\nraft.proto\"&\n\x05\x45ntry\x12\x0c\n\x04term\x18\x01 \x01(\x05\x12\x0f\n\x07\x63ommand\x18\x02 \x01(\t\"\x90\x01\n\x14\x41ppendEntriesRequest\x12\x0c\n\x04term\x18\x01 \x01(\x05\x12\x10\n\x08leaderId\x18\x02 \x01(\x05\x12\x14\n\x0cprevLogIndex\x18\x03 \x01(\x05\x12\x13\n\x0bprevLogTerm\x18\x04 \x01(\x05\x12\x17\n\x07\x65ntries\x18\x05 \x03(\x0b\x32\x06.Entry\x12\x14\n\x0cleaderCommit\x18\x06 \x01(\x05\"6\n\x15\x41ppendEntriesResponse\x12\x0c\n\x04term\x18\x01 \x01(\x05\x12\x0f\n\x07success\x18\x02 \x01(\x08\"b\n\x12RequestVoteRequest\x12\x0c\n\x04term\x18\x01 \x01(\x05\x12\x13\n\x0b\x63\x61ndidateId\x18\x02 \x01(\x05\x12\x14\n\x0clastLogIndex\x18\x03 \x01(\x05\x12\x13\n\x0blastLogTerm\x18\x04 \x01(\x05\"8\n\x13RequestVoteResponse\x12\x0c\n\x04term\x18\x01 \x01(\x05\x12\x13\n\x0bvoteGranted\x18\x02 \x01(\x08\x32\x84\x01\n\x04Raft\x12@\n\rAppendEntries\x12\x15.AppendEntriesRequest\x1a\x16.AppendEntriesResponse\"\x00\x12:\n\x0bRequestVote\x12\x13.RequestVoteRequest\x1a\x14.RequestVoteResponse\"\x00\x62\x06proto3'
+  serialized_pb=b'\n\nraft.proto\"&\n\x05\x45ntry\x12\x0c\n\x04term\x18\x01 \x01(\x05\x12\x0f\n\x07\x63ommand\x18\x02 \x01(\t\"b\n\x12RequestVoteRequest\x12\x0c\n\x04term\x18\x01 \x01(\x05\x12\x13\n\x0b\x63\x61ndidateId\x18\x02 \x01(\x05\x12\x14\n\x0clastLogIndex\x18\x03 \x01(\x05\x12\x13\n\x0blastLogTerm\x18\x04 \x01(\x05\"8\n\x13RequestVoteResponse\x12\x0c\n\x04term\x18\x01 \x01(\x05\x12\x13\n\x0bvoteGranted\x18\x02 \x01(\x08\"\x81\x01\n\nLogRequest\x12\x10\n\x08leaderId\x18\x01 \x01(\x05\x12\x0c\n\x04term\x18\x02 \x01(\x05\x12\x11\n\tprefixLen\x18\x03 \x01(\x05\x12\x12\n\nprefixTerm\x18\x04 \x01(\x05\x12\x14\n\x0cleaderCommit\x18\x05 \x01(\x05\x12\x16\n\x06suffix\x18\x06 \x03(\x0b\x32\x06.Entry\"K\n\x0bLogResponse\x12\x10\n\x08\x66ollower\x18\x01 \x01(\x05\x12\x0c\n\x04term\x18\x02 \x01(\x05\x12\x0b\n\x03\x61\x63k\x18\x03 \x01(\x05\x12\x0f\n\x07success\x18\x04 \x01(\x08\"\"\n\x0fServeClientArgs\x12\x0f\n\x07\x63ommand\x18\x01 \x01(\t\"C\n\x10ServeClientReply\x12\x0c\n\x04\x44\x61ta\x18\x01 \x01(\t\x12\x10\n\x08LeaderID\x18\x02 \x01(\t\x12\x0f\n\x07Success\x18\x03 \x01(\x08\x32\xa3\x01\n\x04Raft\x12:\n\x0bRequestVote\x12\x13.RequestVoteRequest\x1a\x14.RequestVoteResponse\"\x00\x12)\n\nProcessLog\x12\x0b.LogRequest\x1a\x0c.LogResponse\"\x00\x12\x34\n\x0bServeClient\x12\x10.ServeClientArgs\x1a\x11.ServeClientReply\"\x00\x62\x06proto3'
 )
 
 
@@ -61,112 +61,6 @@ _ENTRY = _descriptor.Descriptor(
   ],
   serialized_start=14,
   serialized_end=52,
-)
-
-
-_APPENDENTRIESREQUEST = _descriptor.Descriptor(
-  name='AppendEntriesRequest',
-  full_name='AppendEntriesRequest',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='term', full_name='AppendEntriesRequest.term', index=0,
-      number=1, type=5, cpp_type=1, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-    _descriptor.FieldDescriptor(
-      name='leaderId', full_name='AppendEntriesRequest.leaderId', index=1,
-      number=2, type=5, cpp_type=1, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-    _descriptor.FieldDescriptor(
-      name='prevLogIndex', full_name='AppendEntriesRequest.prevLogIndex', index=2,
-      number=3, type=5, cpp_type=1, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-    _descriptor.FieldDescriptor(
-      name='prevLogTerm', full_name='AppendEntriesRequest.prevLogTerm', index=3,
-      number=4, type=5, cpp_type=1, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-    _descriptor.FieldDescriptor(
-      name='entries', full_name='AppendEntriesRequest.entries', index=4,
-      number=5, type=11, cpp_type=10, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-    _descriptor.FieldDescriptor(
-      name='leaderCommit', full_name='AppendEntriesRequest.leaderCommit', index=5,
-      number=6, type=5, cpp_type=1, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=55,
-  serialized_end=199,
-)
-
-
-_APPENDENTRIESRESPONSE = _descriptor.Descriptor(
-  name='AppendEntriesResponse',
-  full_name='AppendEntriesResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='term', full_name='AppendEntriesResponse.term', index=0,
-      number=1, type=5, cpp_type=1, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-    _descriptor.FieldDescriptor(
-      name='success', full_name='AppendEntriesResponse.success', index=1,
-      number=2, type=8, cpp_type=7, label=1,
-      has_default_value=False, default_value=False,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=201,
-  serialized_end=255,
 )
 
 
@@ -218,8 +112,8 @@ _REQUESTVOTEREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=257,
-  serialized_end=355,
+  serialized_start=54,
+  serialized_end=152,
 )
 
 
@@ -257,16 +151,216 @@ _REQUESTVOTERESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=357,
-  serialized_end=413,
+  serialized_start=154,
+  serialized_end=210,
 )
 
-_APPENDENTRIESREQUEST.fields_by_name['entries'].message_type = _ENTRY
+
+_LOGREQUEST = _descriptor.Descriptor(
+  name='LogRequest',
+  full_name='LogRequest',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='leaderId', full_name='LogRequest.leaderId', index=0,
+      number=1, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='term', full_name='LogRequest.term', index=1,
+      number=2, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='prefixLen', full_name='LogRequest.prefixLen', index=2,
+      number=3, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='prefixTerm', full_name='LogRequest.prefixTerm', index=3,
+      number=4, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='leaderCommit', full_name='LogRequest.leaderCommit', index=4,
+      number=5, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='suffix', full_name='LogRequest.suffix', index=5,
+      number=6, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=213,
+  serialized_end=342,
+)
+
+
+_LOGRESPONSE = _descriptor.Descriptor(
+  name='LogResponse',
+  full_name='LogResponse',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='follower', full_name='LogResponse.follower', index=0,
+      number=1, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='term', full_name='LogResponse.term', index=1,
+      number=2, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='ack', full_name='LogResponse.ack', index=2,
+      number=3, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='success', full_name='LogResponse.success', index=3,
+      number=4, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=344,
+  serialized_end=419,
+)
+
+
+_SERVECLIENTARGS = _descriptor.Descriptor(
+  name='ServeClientArgs',
+  full_name='ServeClientArgs',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='command', full_name='ServeClientArgs.command', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=421,
+  serialized_end=455,
+)
+
+
+_SERVECLIENTREPLY = _descriptor.Descriptor(
+  name='ServeClientReply',
+  full_name='ServeClientReply',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='Data', full_name='ServeClientReply.Data', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='LeaderID', full_name='ServeClientReply.LeaderID', index=1,
+      number=2, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='Success', full_name='ServeClientReply.Success', index=2,
+      number=3, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=457,
+  serialized_end=524,
+)
+
+_LOGREQUEST.fields_by_name['suffix'].message_type = _ENTRY
 DESCRIPTOR.message_types_by_name['Entry'] = _ENTRY
-DESCRIPTOR.message_types_by_name['AppendEntriesRequest'] = _APPENDENTRIESREQUEST
-DESCRIPTOR.message_types_by_name['AppendEntriesResponse'] = _APPENDENTRIESRESPONSE
 DESCRIPTOR.message_types_by_name['RequestVoteRequest'] = _REQUESTVOTEREQUEST
 DESCRIPTOR.message_types_by_name['RequestVoteResponse'] = _REQUESTVOTERESPONSE
+DESCRIPTOR.message_types_by_name['LogRequest'] = _LOGREQUEST
+DESCRIPTOR.message_types_by_name['LogResponse'] = _LOGRESPONSE
+DESCRIPTOR.message_types_by_name['ServeClientArgs'] = _SERVECLIENTARGS
+DESCRIPTOR.message_types_by_name['ServeClientReply'] = _SERVECLIENTREPLY
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 Entry = _reflection.GeneratedProtocolMessageType('Entry', (_message.Message,), {
@@ -275,20 +369,6 @@ Entry = _reflection.GeneratedProtocolMessageType('Entry', (_message.Message,), {
   # @@protoc_insertion_point(class_scope:Entry)
   })
 _sym_db.RegisterMessage(Entry)
-
-AppendEntriesRequest = _reflection.GeneratedProtocolMessageType('AppendEntriesRequest', (_message.Message,), {
-  'DESCRIPTOR' : _APPENDENTRIESREQUEST,
-  '__module__' : 'raft_pb2'
-  # @@protoc_insertion_point(class_scope:AppendEntriesRequest)
-  })
-_sym_db.RegisterMessage(AppendEntriesRequest)
-
-AppendEntriesResponse = _reflection.GeneratedProtocolMessageType('AppendEntriesResponse', (_message.Message,), {
-  'DESCRIPTOR' : _APPENDENTRIESRESPONSE,
-  '__module__' : 'raft_pb2'
-  # @@protoc_insertion_point(class_scope:AppendEntriesResponse)
-  })
-_sym_db.RegisterMessage(AppendEntriesResponse)
 
 RequestVoteRequest = _reflection.GeneratedProtocolMessageType('RequestVoteRequest', (_message.Message,), {
   'DESCRIPTOR' : _REQUESTVOTEREQUEST,
@@ -304,6 +384,34 @@ RequestVoteResponse = _reflection.GeneratedProtocolMessageType('RequestVoteRespo
   })
 _sym_db.RegisterMessage(RequestVoteResponse)
 
+LogRequest = _reflection.GeneratedProtocolMessageType('LogRequest', (_message.Message,), {
+  'DESCRIPTOR' : _LOGREQUEST,
+  '__module__' : 'raft_pb2'
+  # @@protoc_insertion_point(class_scope:LogRequest)
+  })
+_sym_db.RegisterMessage(LogRequest)
+
+LogResponse = _reflection.GeneratedProtocolMessageType('LogResponse', (_message.Message,), {
+  'DESCRIPTOR' : _LOGRESPONSE,
+  '__module__' : 'raft_pb2'
+  # @@protoc_insertion_point(class_scope:LogResponse)
+  })
+_sym_db.RegisterMessage(LogResponse)
+
+ServeClientArgs = _reflection.GeneratedProtocolMessageType('ServeClientArgs', (_message.Message,), {
+  'DESCRIPTOR' : _SERVECLIENTARGS,
+  '__module__' : 'raft_pb2'
+  # @@protoc_insertion_point(class_scope:ServeClientArgs)
+  })
+_sym_db.RegisterMessage(ServeClientArgs)
+
+ServeClientReply = _reflection.GeneratedProtocolMessageType('ServeClientReply', (_message.Message,), {
+  'DESCRIPTOR' : _SERVECLIENTREPLY,
+  '__module__' : 'raft_pb2'
+  # @@protoc_insertion_point(class_scope:ServeClientReply)
+  })
+_sym_db.RegisterMessage(ServeClientReply)
+
 
 
 _RAFT = _descriptor.ServiceDescriptor(
@@ -313,26 +421,36 @@ _RAFT = _descriptor.ServiceDescriptor(
   index=0,
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_start=416,
-  serialized_end=548,
+  serialized_start=527,
+  serialized_end=690,
   methods=[
   _descriptor.MethodDescriptor(
-    name='AppendEntries',
-    full_name='Raft.AppendEntries',
+    name='RequestVote',
+    full_name='Raft.RequestVote',
     index=0,
     containing_service=None,
-    input_type=_APPENDENTRIESREQUEST,
-    output_type=_APPENDENTRIESRESPONSE,
+    input_type=_REQUESTVOTEREQUEST,
+    output_type=_REQUESTVOTERESPONSE,
     serialized_options=None,
     create_key=_descriptor._internal_create_key,
   ),
   _descriptor.MethodDescriptor(
-    name='RequestVote',
-    full_name='Raft.RequestVote',
+    name='ProcessLog',
+    full_name='Raft.ProcessLog',
     index=1,
     containing_service=None,
-    input_type=_REQUESTVOTEREQUEST,
-    output_type=_REQUESTVOTERESPONSE,
+    input_type=_LOGREQUEST,
+    output_type=_LOGRESPONSE,
+    serialized_options=None,
+    create_key=_descriptor._internal_create_key,
+  ),
+  _descriptor.MethodDescriptor(
+    name='ServeClient',
+    full_name='Raft.ServeClient',
+    index=2,
+    containing_service=None,
+    input_type=_SERVECLIENTARGS,
+    output_type=_SERVECLIENTREPLY,
     serialized_options=None,
     create_key=_descriptor._internal_create_key,
   ),

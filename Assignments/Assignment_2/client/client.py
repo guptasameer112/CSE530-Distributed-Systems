@@ -1,6 +1,6 @@
 import grpc
-import raft_pb2
-import raft_pb2_grpc
+import Assignments.Assignment_2.nodes.raft_pb2 as raft_pb2
+import Assignments.Assignment_2.nodes.raft_pb2_grpc as raft_pb2_grpc
 
 class RaftClient:
     def __init__(self, address):
