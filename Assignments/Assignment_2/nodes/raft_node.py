@@ -4,20 +4,17 @@ import raft_pb2_grpc
 import time
 import random
 import sys
+import os
 
 from concurrent import futures
 
 MAJORITY = 3
 
-# Log configuration
-MAX_LOG_ENTRIES = 1000  # Maximum number of log entries in the log
-LOG_COMPACT_THRESHOLD = 500  # Log compaction threshold (number of entries)
-
 class RaftNode(raft_pb2_grpc.RaftServicer):
     def __init__(self, selfid):
         self.id = selfid
         self.all_ids = [1,2,3,4,5] # LIST OF ALL IDs
-        self.node_addresses = ['localhost:50051', 'localhost:50052', 'localhost:50053', 'localhost:50054', 'localhost:50055']
+        self.node_addresses = ['34.171.128.42:50051', '34.135.113.63:50052', '35.222.211.87:50053', '34.29.124.144:50054', '34.70.127.67:50055']
         # Persistent state
         self.currentTerm = 0
         self.votedFor = None
@@ -43,29 +40,28 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
     def start(self):
 
         print(f"Starting {self.id}")
-        # while True:
-        #     if self.currentRole == 'follower':
-        #         if time.time() > self.election_timeout:
-        #             print("election timed out for follower state", self.id)
-        #             self.currentRole = 'candidate'
-        #             # self.election_timeout = self.calculate_election_timeout()
-        #     elif self.currentRole == 'candidate':
-        #         self.collect_votes()
-        #         if time.time() > self.election_timeout:
-        #             self.election_timeout = self.calculate_election_timeout()
-        #     elif self.currentRole == 'leader':
-        #         time.sleep(1)
-        #         self.periodically(self.id)
-        #         # Start heartbeat timer
-        
-        if self.id == 1:
-            self.currentRole ='candidate'
-            self.collect_votes()
+        while True:
+            if self.currentRole == 'follower':
+                if time.time() > self.election_timeout:
+                    print("election timed out for follower state", self.id)
+                    self.currentRole = 'candidate'
+                    # self.election_timeout = self.calculate_election_timeout()
+                    self.collect_votes()
+                    self.election_timeout = self.calculate_election_timeout()
+            # elif self.currentRole == 'candidate':
+            #     if time.time() > self.election_timeout:
+            #         self.collect_votes()
+            #         self.election_timeout = self.calculate_election_timeout()
+
+            elif self.currentRole == 'leader':
+                time.sleep(1)
+                self.periodically()
+                # Start heartbeat timer
         
 
     def calculate_election_timeout(self):
         # Calculate a random election timeout between 5 and 10 seconds
-        rand_time = random.randint(5, 10)
+        rand_time = random.randint(5, 10) + random.randint(1, 10)*0.001
         print("Restarting timer as ", rand_time)
         return time.time() + rand_time
 
@@ -176,10 +172,11 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
             return raft_pb2.ServeClientReply(Data=f'Update Leader, LeaderId = {self.currentLeader}', LeaderID=self.currentLeader, Success=False)
 
     # HEARTBEAT ----> CHANGE/INTERGRATE THIS WITH THE MAIN RUN LOOP
-    def periodically(self, node_id):
+    def periodically(self):
         if self.currentRole == 'leader':
-            for follower_id in self.nodes - {node_id}:
-                self.replicateLog(node_id, follower_id)            
+            for follower_id in self.all_ids:
+                if follower_id != self.id:
+                    self.replicateLog(self.id, follower_id)            
 
     def replicateLog(self, leaderId, followerId):
         prefix_len = self.sentLength[followerId]
@@ -286,6 +283,11 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
                 
 
 def serve():
+
+    if os.environ.get('https_proxy'):
+        del os.environ['https_proxy']
+    if os.environ.get('http_proxy'):
+        del os.environ['http_proxy']
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=100))
     node_obj = RaftNode(int(sys.argv[1]))
     raft_pb2_grpc.add_RaftServicer_to_server(node_obj, server)
