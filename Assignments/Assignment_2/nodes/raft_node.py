@@ -31,6 +31,7 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
         self.votesReceived = set()  # CHANGE IT!!! ITS a Dict or a set
         self.sentLength = dict() # node_id:length
         self.ackedLength = dict() # node_id:length
+        self.db = dict() # key:value
 
         self.election_timeout = self.calculate_election_timeout()
 
@@ -40,21 +41,26 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
         self.start()
 
     def start(self):
-        print("Starting!!")
-        while True:
-            if self.currentRole == 'follower':
-                if time.time() > self.election_timeout:
-                    print("election timed out for follower state", self.id)
-                    self.currentRole = 'candidate'
-                    self.election_timeout = self.calculate_election_timeout()
-            elif self.currentRole == 'candidate':
-                self.collect_votes()
-                if time.time() > self.election_timeout:
-                    self.election_timeout = self.calculate_election_timeout()
-            elif self.currentRole == 'leader':
-                time.sleep(1)
-                self.periodically(self.id)
-                # Start heartbeat timer
+
+        print(f"Starting {self.id}")
+        # while True:
+        #     if self.currentRole == 'follower':
+        #         if time.time() > self.election_timeout:
+        #             print("election timed out for follower state", self.id)
+        #             self.currentRole = 'candidate'
+        #             # self.election_timeout = self.calculate_election_timeout()
+        #     elif self.currentRole == 'candidate':
+        #         self.collect_votes()
+        #         if time.time() > self.election_timeout:
+        #             self.election_timeout = self.calculate_election_timeout()
+        #     elif self.currentRole == 'leader':
+        #         time.sleep(1)
+        #         self.periodically(self.id)
+        #         # Start heartbeat timer
+        
+        if self.id == 1:
+            self.currentRole ='candidate'
+            self.collect_votes()
         
 
     def calculate_election_timeout(self):
@@ -69,15 +75,19 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
         print(self.id, 'has recieved a vote request from', request.candidateId)
 
         if request.term > self.currentTerm:
-            self.currentTerm = request['term']
+            self.currentTerm = request.term
             self.currentRole = 'follower'
             self.votedFor = None
 
-            
+        lastTerm = 0
+        if len(self.log) > 0:
+            lastTerm = self.log[-1]['term']
+        
+        # fix list out of index error
         if (request.term == self.currentTerm) and \
             (self.votedFor is None or self.votedFor == request.candidateId) and \
-                (request.lastLogTerm > self.log[-1]['term'] or
-                 (request.lastLogTerm == self.log[-1]['term'] and request.lastLogIndex >= len(self.log))):
+                (request.lastLogTerm > lastTerm or
+                 (request.lastLogTerm == lastTerm and request.lastLogIndex >= len(self.log))):
             self.votedFor = request.candidateId
             response.term = self.currentTerm
             response.voteGranted = True
@@ -89,14 +99,23 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
     
 
     def collect_votes(self):
+        self.currentTerm += 1
+        self.currentRole = 'candidate'
+        self.votedFor = self.id
+        self.votesReceived.add(self.id)
         
+        lastTerm = 0
+        if len(self.log) > 0: lastTerm = self.log[-1]['term']
+
         for address in self.all_ids:
             # Send a RequestVote RPC to each server
+            
+            
             request = raft_pb2.RequestVoteRequest(
                 term=self.currentTerm,
                 candidateId=self.id,
                 lastLogIndex=len(self.log),
-                lastLogTerm=self.log[-1]['term'] if self.log else 0
+                lastLogTerm=lastTerm
             )
 
             try:
@@ -107,8 +126,6 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
 
             except grpc.RpcError as e:
                 print(f"{self.id} Failed RPC error ho gaya : {e}")
-                self.currentRole = 'follower'
-                self.votedFor = None
                 continue
 
             if self.currentRole == 'candidate' and response.voteGranted and self.currentTerm == response.term:
@@ -120,11 +137,11 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
                     self.currentLeader = self.id
                     # CANCEL ELECTION TIMER ?
 
-                for addr in self.all_ids:
-                    if(addr != address):
-                        self.sentLength[addr] = len(self.log)
-                        self.ackedLength[addr] = 0
-                        self.replicateLog(self.id, addr) # FILL THIS FUNCTION!!
+                    for addr in self.all_ids:
+                        if(addr != address):
+                            self.sentLength[addr] = len(self.log)
+                            self.ackedLength[addr] = 0
+                            self.replicateLog(self.id, addr) # FILL THIS FUNCTION!!
 
             elif response.term > self.currentTerm:
                 self.currentTerm = response.term
@@ -149,8 +166,11 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
                 self.broadcast_message(request.Request)
                 return raft_pb2.ServeClientReply(Data='Entry Updated', LeaderID=self.currentLeader, Success=True)
             elif request.Request.split()[0] == 'GET':
-                # SEARCH FOR THE Key IN THE DB
-                pass
+                key = request.Request.split()[1]
+                if key in self.db:
+                    return raft_pb2.ServeClientReply(Data=self.db[key], LeaderID=self.currentLeader, Success=True)
+                else:
+                    return raft_pb2.ServeClientReply(Data='Key not found', LeaderID=self.currentLeader, Success=False)
 
         else:
             return raft_pb2.ServeClientReply(Data=f'Update Leader, LeaderId = {self.currentLeader}', LeaderID=self.currentLeader, Success=False)
@@ -175,13 +195,13 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
             
         message = raft_pb2.LogRequest(
             leaderId=leaderId,
-            currentTerm=self.currentTerm,
+            term=self.currentTerm,
             prefixLen=prefix_len,
             prefixTerm=prefix_term,
-            commitLength=self.commitLength,
+            leaderCommit=self.commitLength,
             suffix=suffix
         )
-        self.channel = grpc.insecure_channel(self.node_addresses[followerId])
+        self.channel = grpc.insecure_channel(self.node_addresses[followerId - 1])
         self.stub = raft_pb2_grpc.RaftStub(self.channel)
         response = self.stub.ProcessLog(message)
 
@@ -216,13 +236,15 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
         if len(ready) != 0 and max(ready) > self.commitLength and self.log[max(ready)-1]['term'] == self.currentTerm:
 
             for i in range(self.commitLength, max(ready)):
-                # DELIVER self.log[i][] TO THE APPLICATION (WRITE TO DUMP FILE)   
-                print(f'DELIVER self.log[{i}][] TO THE APPLICATION (WRITE TO DUMP FILE)')
+                # DELIVER self.log[i][] TO THE APPLICATION (WRITE TO DUMP FILE) 
+                self.db[self.log[i]['command'].split()[1]] = self.log[i]['command'].split()[2]  
+                # print(f'DELIVER self.log[{i}][] TO THE APPLICATION (WRITE TO DUMP FILE)')
 
             self.commitLength = max(ready)
     
 
     def ProcessLog(self, request, context):
+        print(f'Processing log request from {request.leaderId}')
         if request.term > self.currentTerm:
             self.currentTerm = request.term
             self.votedFor = None
@@ -232,10 +254,10 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
             self.currentRole = 'follower'
             self.currentLeader = request.leaderId
             
-        logOk = (len(self.log) >= request.prefixLen and (self.log[request.prefixLen - 1]['term'] == request.prefixTerm or request.prefixLen == 0))
+        logOk = (len(self.log) >= request.prefixLen and (request.prefixLen == 0 or self.log[request.prefixLen - 1]['term'] == request.prefixTerm))
 
         if request.term == self.currentTerm and logOk:
-            self.AppendEntries(request.prefixLen, request.commitLength, request.suffix)
+            self.AppendEntries(request.prefixLen, request.leaderCommit, request.suffix)
             ack = request.prefixLen + len(request.suffix)
             return raft_pb2.LogResponse(follower = self.id, term=self.currentTerm,ack = ack, success=True)
         else:
@@ -264,7 +286,7 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
                 
 
 def serve():
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=100))
     node_obj = RaftNode(int(sys.argv[1]))
     raft_pb2_grpc.add_RaftServicer_to_server(node_obj, server)
     server.add_insecure_port(f'[::]:{sys.argv[2]}')
