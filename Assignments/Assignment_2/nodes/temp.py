@@ -6,10 +6,12 @@ import random
 import sys
 import os
 import threading
+import schedule
 
 from concurrent import futures
 
 MAJORITY = 3
+LEASE_DURATION = 10
 
 class RaftNode(raft_pb2_grpc.RaftServicer):
     def __init__(self, selfid):
@@ -35,50 +37,43 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
 
         self.channel = None
         self.stub = None
-        # self.address = f'{self.get_ip()}:{port}'
-
-        self.loop_thread = threading.Thread(target=self.start_loop)
-        self.loop_thread.daemon = True
-        self.loop_thread.start()
+        self.start_election_timer()
 
 
-    def start_loop(self):
 
-        print(f"Starting {self.id}")
-        while True:
-            if self.currentRole == 'follower':
-                if time.time() > self.election_timeout:
-                    print("election timed out for follower state", self.id)
-                    print(self.id, " election timeout for time: ", self.election_timeout)
-                    self.currentRole = 'candidate'
-                    self.currentTerm += 1
-                    self.votedFor = self.id
-                    self.votesReceived.add(self.id)
-                    # self.election_timeout = self.calculate_election_timeout()
-                    self.collect_votes()
-                    self.election_timeout = self.calculate_election_timeout()
-            # elif self.currentRole == 'candidate':
-            #     if time.time() > self.election_timeout:
-            #         self.collect_votes()
-            #         self.election_timeout = self.calculate_election_timeout()
+    def start_election_timer(self):
+        election_timeout = random.uniform(5, 10)
+        self.election_timer = threading.Timer(election_timeout, self.collect_votes)
+        self.election_timer.start()
 
-            elif self.currentRole == 'leader':
-                time.sleep(1)
-                # print("I", self.id, "leader am sending heartbeat")
-                self.periodically()
-                # Start heartbeat timer
+    def start_heartbeat_timer(self):
+        self.heartbeat_timer = threading.Timer(1, self.send_heartbeats) # CHANGE FUNCTION
+        self.heartbeat_timer.start()
 
-    def calculate_election_timeout(self):
-        # Calculate a random election timeout between 5 and 10 seconds
-        rand_time = random.randint(5, 10) + random.randint(1, 10)*0.001
-        # print("Restarting timer as ", rand_time)
-        # print(self.id, " election timeout recalc to", time.time() + rand_time)
-        return time.time() + rand_time
+    def start_lease_timer(self):
+        self.lease_start_time = time.time()
+        self.lease_timer = threading.Timer(LEASE_DURATION, self.lease_timeout) # CHANGE FUNCTION
+        self.lease_timer.start()
+
+    def cancel_election_timer(self):
+        if self.election_timer:
+            self.election_timer.cancel()
+
+    def cancel_heartbeat_timer(self):
+        if self.heartbeat_timer:
+            self.heartbeat_timer.cancel()
+
+    def cancel_lease_timer(self):
+        if self.lease_timer:
+            self.lease_timer.cancel()
+
+
+
 
     def RequestVote(self, request, context):
         response = raft_pb2.RequestVoteResponse()
 
-        print(self.id, 'has recieved a vote request from', request.candidateId)
+        print(self.id, ' has recieved a vote request from', request.candidateId)
 
         if request.term > self.currentTerm:
             self.currentTerm = request.term
@@ -103,14 +98,27 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
         response.voteGranted = False
         return response
     
-
     def collect_votes(self):
+        self.currentTerm += 1
+        self.currentRole = 'candidate'
+        self.votedFor = self.id
+        self.votesReceived.add(self.id)
         
         lastTerm = 0
         if len(self.log) > 0: lastTerm = self.log[-1]['term']
 
+        threads = []
+
         for address in self.all_ids:
             # Send a RequestVote RPC to each server
+            thread = self.voting_async(lastTerm, address)
+            threads.append(thread)
+            # CANCEL ELECTION TIMER ?
+
+    
+    def voting_async(self, lastTerm, address):
+
+        def vote_rpc():
             request = raft_pb2.RequestVoteRequest(
                 term=self.currentTerm,
                 candidateId=self.id,
@@ -125,7 +133,7 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
 
                 except grpc.RpcError as e:
                     print(f"{self.id} Failed RPC error ho gaya : {e}")
-                    continue
+                    return
 
             if self.currentRole == 'candidate' and response.voteGranted and self.currentTerm == response.term:
                 print(address ,"voted for", self.id)
@@ -135,7 +143,6 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
                     self.currentRole = 'leader'
                     self.currentLeader = self.id
                     # CANCEL ELECTION TIMER ?
-                    self.election_timeout = self.calculate_election_timeout()
 
                     for addr in self.all_ids:
                         if(addr != self.id):
@@ -147,9 +154,11 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
                 self.currentTerm = response.term
                 self.currentRole = 'follower'
                 self.votedFor = None
-                # CANCEL ELECTION TIMER ?
-                self.election_timeout = self.calculate_election_timeout()
 
+        thread = threading.Thread(target=vote_rpc)
+        thread.start()
+        return thread
+    
     # THIS REQUEST TO MESSAGE IS COMING FROM THE CLIENT 
     def broadcast_message(self, request):
         log_record = {'command': request, 'term': self.currentTerm}
@@ -222,8 +231,7 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
             self.currentTerm = response.term
             self.currentRole = 'follower'
             self.votesReceived = None
-            # CANCEL ELECTION TIMER
-            self.election_timeout = self.calculate_election_timeout()
+            self.ele
 
     def acks(self, in_len):
         counter = 0
@@ -247,10 +255,8 @@ class RaftNode(raft_pb2_grpc.RaftServicer):
     
 
     def ProcessLog(self, request, context):
-        print(f'{self.id} Processing log request from {request.leaderId}, term = {self.currentTerm}')
-        self.election_timeout = self.calculate_election_timeout()
+        print(f'Processing log request from {request.leaderId}')
         if request.term > self.currentTerm:
-            print(f"Updating term from {self.currentTerm} to {request.term} (ProcessLog)")
             self.currentTerm = request.term
             self.votedFor = None
             # Cancel election timer
@@ -305,6 +311,7 @@ def serve():
     try:
         while True:
             time.sleep(86400)
+
     except KeyboardInterrupt:
         server.stop(0)
         print("Server stopped")

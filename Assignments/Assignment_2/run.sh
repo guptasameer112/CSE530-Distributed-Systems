@@ -3,6 +3,10 @@
 function handle_interrupt {
     echo "Keyboard interrupt detected. Stopping execution."
     # Add cleanup commands if necessary
+
+    # Kill all python processes
+    pkill -f "python nodes/raft_node.py"
+
     exit 1
 }
 
