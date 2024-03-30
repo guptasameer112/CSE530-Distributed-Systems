@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n\nraft.proto\"&\n\x05\x45ntry\x12\x0c\n\x04term\x18\x01 \x01(\x05\x12\x0f\n\x07\x63ommand\x18\x02 \x01(\t\"b\n\x12RequestVoteRequest\x12\x0c\n\x04term\x18\x01 \x01(\x05\x12\x13\n\x0b\x63\x61ndidateId\x18\x02 \x01(\x05\x12\x14\n\x0clastLogIndex\x18\x03 \x01(\x05\x12\x13\n\x0blastLogTerm\x18\x04 \x01(\x05\"8\n\x13RequestVoteResponse\x12\x0c\n\x04term\x18\x01 \x01(\x05\x12\x13\n\x0bvoteGranted\x18\x02 \x01(\x08\"\x81\x01\n\nLogRequest\x12\x10\n\x08leaderId\x18\x01 \x01(\x05\x12\x0c\n\x04term\x18\x02 \x01(\x05\x12\x11\n\tprefixLen\x18\x03 \x01(\x05\x12\x12\n\nprefixTerm\x18\x04 \x01(\x05\x12\x14\n\x0cleaderCommit\x18\x05 \x01(\x05\x12\x16\n\x06suffix\x18\x06 \x03(\x0b\x32\x06.Entry\"K\n\x0bLogResponse\x12\x10\n\x08\x66ollower\x18\x01 \x01(\x05\x12\x0c\n\x04term\x18\x02 \x01(\x05\x12\x0b\n\x03\x61\x63k\x18\x03 \x01(\x05\x12\x0f\n\x07success\x18\x04 \x01(\x08\"\"\n\x0fServeClientArgs\x12\x0f\n\x07\x63ommand\x18\x01 \x01(\t\"C\n\x10ServeClientReply\x12\x0c\n\x04\x44\x61ta\x18\x01 \x01(\t\x12\x10\n\x08LeaderID\x18\x02 \x01(\t\x12\x0f\n\x07Success\x18\x03 \x01(\x08\x32\xa3\x01\n\x04Raft\x12:\n\x0bRequestVote\x12\x13.RequestVoteRequest\x1a\x14.RequestVoteResponse\"\x00\x12)\n\nProcessLog\x12\x0b.LogRequest\x1a\x0c.LogResponse\"\x00\x12\x34\n\x0bServeClient\x12\x10.ServeClientArgs\x1a\x11.ServeClientReply\"\x00\x62\x06proto3'
+  serialized_pb=b'\n\nraft.proto\"&\n\x05\x45ntry\x12\x0c\n\x04term\x18\x01 \x01(\x05\x12\x0f\n\x07\x63ommand\x18\x02 \x01(\t\"b\n\x12RequestVoteRequest\x12\x0c\n\x04term\x18\x01 \x01(\x05\x12\x13\n\x0b\x63\x61ndidateId\x18\x02 \x01(\x05\x12\x14\n\x0clastLogIndex\x18\x03 \x01(\x05\x12\x13\n\x0blastLogTerm\x18\x04 \x01(\x05\"O\n\x13RequestVoteResponse\x12\x0c\n\x04term\x18\x01 \x01(\x05\x12\x13\n\x0bvoteGranted\x18\x02 \x01(\x08\x12\x15\n\rleaseDuration\x18\x03 \x01(\x01\"\x98\x01\n\nLogRequest\x12\x10\n\x08leaderId\x18\x01 \x01(\x05\x12\x0c\n\x04term\x18\x02 \x01(\x05\x12\x11\n\tprefixLen\x18\x03 \x01(\x05\x12\x12\n\nprefixTerm\x18\x04 \x01(\x05\x12\x14\n\x0cleaderCommit\x18\x05 \x01(\x05\x12\x16\n\x06suffix\x18\x06 \x03(\x0b\x32\x06.Entry\x12\x15\n\rleaseInterval\x18\x07 \x01(\x05\"K\n\x0bLogResponse\x12\x10\n\x08\x66ollower\x18\x01 \x01(\x05\x12\x0c\n\x04term\x18\x02 \x01(\x05\x12\x0b\n\x03\x61\x63k\x18\x03 \x01(\x05\x12\x0f\n\x07success\x18\x04 \x01(\x08\"\"\n\x0fServeClientArgs\x12\x0f\n\x07Request\x18\x01 \x01(\t\"C\n\x10ServeClientReply\x12\x0c\n\x04\x44\x61ta\x18\x01 \x01(\t\x12\x10\n\x08LeaderID\x18\x02 \x01(\x05\x12\x0f\n\x07Success\x18\x03 \x01(\x08\x32\xa3\x01\n\x04Raft\x12:\n\x0bRequestVote\x12\x13.RequestVoteRequest\x1a\x14.RequestVoteResponse\"\x00\x12)\n\nProcessLog\x12\x0b.LogRequest\x1a\x0c.LogResponse\"\x00\x12\x34\n\x0bServeClient\x12\x10.ServeClientArgs\x1a\x11.ServeClientReply\"\x00\x62\x06proto3'
 )
 
 
@@ -139,6 +139,13 @@ _REQUESTVOTERESPONSE = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='leaseDuration', full_name='RequestVoteResponse.leaseDuration', index=2,
+      number=3, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
   ],
   extensions=[
   ],
@@ -152,7 +159,7 @@ _REQUESTVOTERESPONSE = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=154,
-  serialized_end=210,
+  serialized_end=233,
 )
 
 
@@ -206,6 +213,13 @@ _LOGREQUEST = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='leaseInterval', full_name='LogRequest.leaseInterval', index=6,
+      number=7, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
   ],
   extensions=[
   ],
@@ -218,8 +232,8 @@ _LOGREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=213,
-  serialized_end=342,
+  serialized_start=236,
+  serialized_end=388,
 )
 
 
@@ -271,8 +285,8 @@ _LOGRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=344,
-  serialized_end=419,
+  serialized_start=390,
+  serialized_end=465,
 )
 
 
@@ -285,7 +299,7 @@ _SERVECLIENTARGS = _descriptor.Descriptor(
   create_key=_descriptor._internal_create_key,
   fields=[
     _descriptor.FieldDescriptor(
-      name='command', full_name='ServeClientArgs.command', index=0,
+      name='Request', full_name='ServeClientArgs.Request', index=0,
       number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
@@ -303,8 +317,8 @@ _SERVECLIENTARGS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=421,
-  serialized_end=455,
+  serialized_start=467,
+  serialized_end=501,
 )
 
 
@@ -325,8 +339,8 @@ _SERVECLIENTREPLY = _descriptor.Descriptor(
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
       name='LeaderID', full_name='ServeClientReply.LeaderID', index=1,
-      number=2, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
+      number=2, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
@@ -349,8 +363,8 @@ _SERVECLIENTREPLY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=457,
-  serialized_end=524,
+  serialized_start=503,
+  serialized_end=570,
 )
 
 _LOGREQUEST.fields_by_name['suffix'].message_type = _ENTRY
@@ -421,8 +435,8 @@ _RAFT = _descriptor.ServiceDescriptor(
   index=0,
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_start=527,
-  serialized_end=690,
+  serialized_start=573,
+  serialized_end=736,
   methods=[
   _descriptor.MethodDescriptor(
     name='RequestVote',

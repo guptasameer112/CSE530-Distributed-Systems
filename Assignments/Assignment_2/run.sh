@@ -15,12 +15,13 @@ trap handle_interrupt SIGINT
 
 # Run the following commands in separate terminals
 
+rm logs_node_1/* logs_node_2/* logs_node_3/* logs_node_4/* logs_node_5/*
 
 
-python nodes/raft_node.py 1 50051 &
-python nodes/raft_node.py 2 50052 &
-python nodes/raft_node.py 3 50053 &
-python nodes/raft_node.py 4 50054 &
-python nodes/raft_node.py 5 50055 &
+# python nodes/raft_node.py 1 50051 &
+# python nodes/raft_node.py 2 50052 &
+# python nodes/raft_node.py 3 50053 &
+# python nodes/raft_node.py 4 50054 &
+# python nodes/raft_node.py 5 50055 &
 
 wait
