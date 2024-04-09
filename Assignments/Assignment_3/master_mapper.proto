@@ -1,0 +1,25 @@
+// master_mapper.proto
+
+syntax = "proto3";
+
+message Point {
+  double x = 1;
+  double y = 2;
+}
+
+message MapRequest {
+  repeated int32 start_index = 1;  // Indexes of lines to be processed by the mapper
+  repeated int32 end_index = 2;
+  int32 num_reducers = 3;
+  repeated Point centroids = 4;
+}
+
+message MapResponse {
+  bool success = 1;  // Indicates whether mapping was successful or not
+}
+
+
+
+service Mapper {
+  rpc Map(MapRequest) returns (MapResponse) {}
+}

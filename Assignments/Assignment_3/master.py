@@ -1,7 +1,7 @@
 import grpc
 import sys
-# import k_means_pb2
-# import k_means_pb2_grpc
+import master_mapper_pb2
+import master_mapper_pb2_grpc
 import random
 
 def split_input_data(num_lines, num_mappers):
@@ -40,33 +40,33 @@ def run_iteration(input_data, num_mappers, num_reducers, centroids):
     # Split input data
     number_of_lines = len(input_data)
     input_splits = split_input_data(number_of_lines, num_mappers)
+    print(input_splits)
 
     # Initialize gRPC channels to mappers
     mapper_channels = [grpc.insecure_channel(f'localhost:{50051 + i}') for i in range(num_mappers)]
-    mapper_stubs = [k_means_pb2_grpc.MapperStub(channel) for channel in mapper_channels]
+    mapper_stubs = [master_mapper_pb2_grpc.MapperStub(channel) for channel in mapper_channels]
 
-
-    # Step 1: Map phase
+    # Step 1: Map phase and Partition phase
     for mapper_id, mapper_stub in enumerate(mapper_stubs):
-        mapper_request = k_means_pb2.MapRequest(data_points=input_splits[mapper_id])
-        mapper_stub.Map(mapper_request)
-
-    # Step 2: Partition phase
-    partition_responses = [mapper_stub.data_points for mapper_stub in mapper_stubs]
+        response_centroids = [master_mapper_pb2.Point(x = a, y = b) for a,b in centroids]
+        print(response_centroids)
+        mapper_request = master_mapper_pb2.MapRequest(start_index=[x[0] for x in input_splits], end_index = [x[1] for x in input_splits], num_reducers = num_reducers, centroids = response_centroids)
+        response = mapper_stub.Map(mapper_request)
+        print(response.success)
 
     # Initialize gRPC channels to reducers
     reducer_channels = [grpc.insecure_channel(f'localhost:{50051 + num_mappers + i}') for i in range(num_reducers)]
-    reducer_stubs = [k_means_pb2_grpc.ReducerStub(channel) for channel in reducer_channels]
+    reducer_stubs = [master_reducer_pb2.ReducerStub(channel) for channel in reducer_channels]
 
     # Step 3: Shuffle and Sort phase
-    shuffle_sort_request = k_means_pb2.ShuffleSortRequest(partitions=partition_responses)
+    shuffle_sort_request = master_mapper_pb2.ShuffleSortRequest(partitions=partition_responses)
     for reducer_stub in reducer_stubs:
         reducer_stub.ShuffleSort(shuffle_sort_request)
 
     # Step 4: Reduce phase
     reducer_outputs = []
     for reducer_id, reducer_stub in enumerate(reducer_stubs):
-        reducer_request = k_means_pb2.ReduceRequest(reducer_id=reducer_id)
+        reducer_request = master_mapper_pb2.ReduceRequest(reducer_id=reducer_id)
         reducer_output = reducer_stub.Reduce(reducer_request)
         reducer_outputs.append(reducer_output)
 
@@ -81,11 +81,12 @@ if __name__ == '__main__':
     num_mappers = int(sys.argv[1])
     num_reducers = int(sys.argv[2])
     num_iterations = int(sys.argv[3])
-    num_clusters = 2
+    num_clusters = int(sys.argv[4])
 
     print(f'Number of mappers: {num_mappers}')
     print(f'Number of reducers: {num_reducers}')
     print(f'Number of iterations: {num_iterations}')
+    print(f'Number of clusters: {num_clusters}')
 
     input_data_file = "Data/Input/points.txt"
     centroids_file = "Data/centroids.txt"
@@ -95,13 +96,18 @@ if __name__ == '__main__':
         input_data = [list(map(float, line.strip().split(','))) for line in f]
     print(f'Input data: {input_data}')
 
+    centroids = []
+
     # Generate random initial centroids
     with open(centroids_file, 'w') as f:
         for _ in range(num_clusters):
             # Choose k initial means µ1, . . . , µk uniformly at random from the set X.
             centroid = random.choice(input_data)
+            centroids.append(centroid)
             print(f'Initial centroid: {centroid}')
             f.write(' '.join(map(str, centroid)) + '\n')
+
+    print(f'Initial centroids: {centroids}')
 
     # Run iterations and if they converge before num_iterations, stop early
     for i in range(num_iterations):
