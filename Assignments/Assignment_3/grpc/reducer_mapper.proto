@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+service Mapper {
+  rpc GetPartitions(GetPartitionsRequest) returns (stream GetPartitionsResponse);
+}
+
+message GetPartitionsRequest {
+  int32 reducer_id = 1;
+}
+
+message GetPartitionsResponse {
+  repeated DataPoint partition = 1;
+}
