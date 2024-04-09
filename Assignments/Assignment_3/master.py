@@ -2,6 +2,10 @@ import grpc
 import sys
 import master_mapper_pb2
 import master_mapper_pb2_grpc
+import master_reducer_pb2
+import master_reducer_pb2_grpc
+import reducer_mapper_pb2
+import reducer_mapper_pb2_grpc
 import random
 
 def split_input_data(num_lines, num_mappers):
@@ -56,24 +60,21 @@ def run_iteration(input_data, num_mappers, num_reducers, centroids):
 
     # Initialize gRPC channels to reducers
     reducer_channels = [grpc.insecure_channel(f'localhost:{50051 + num_mappers + i}') for i in range(num_reducers)]
-    reducer_stubs = [master_reducer_pb2.ReducerStub(channel) for channel in reducer_channels]
+    reducer_stubs = [reducer_mapper_pb2_grpc.ReducerStub(channel) for channel in reducer_channels]
 
-    # Step 3: Shuffle and Sort phase
-    shuffle_sort_request = master_mapper_pb2.ShuffleSortRequest(partitions=partition_responses)
-    for reducer_stub in reducer_stubs:
-        reducer_stub.ShuffleSort(shuffle_sort_request)
+    # reducer_outputs = []
+    # for reducer_id, reducer_stub in enumerate(reducer_stubs):
+    #     reducer_request = master_reducer_pb2.ReduceRequest(reducer_id=reducer_id)
+    #     reducer_output_stream = reducer_stub.Reduce(reducer_request)
+    #     for response in reducer_output_stream:
+    #         # Process each ReduceResponse
+    #         updated_centroids = [(centroid.centroid_id, centroid.values) for centroid in response.updated_centroids]
+    #         reducer_outputs.append(updated_centroids)
 
-    # Step 4: Reduce phase
-    reducer_outputs = []
-    for reducer_id, reducer_stub in enumerate(reducer_stubs):
-        reducer_request = master_mapper_pb2.ReduceRequest(reducer_id=reducer_id)
-        reducer_output = reducer_stub.Reduce(reducer_request)
-        reducer_outputs.append(reducer_output)
+    # return reducer_outputs
 
-    # Step 5: Compile centroids
-    updated_centroids = compile_centroids(reducer_outputs)
+    # compile_centroids(reducer_outputs)
 
-    return updated_centroids
 
 if __name__ == '__main__':
 

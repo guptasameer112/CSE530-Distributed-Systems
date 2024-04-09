@@ -7,6 +7,12 @@ message Point {
   double y = 2;
 }
 
+message DataPoint {
+  int32 centroid_id = 1;
+  double x = 2;
+  double y = 3;
+}
+
 message MapRequest {
   repeated int32 start_index = 1;  // Indexes of lines to be processed by the mapper
   repeated int32 end_index = 2;
@@ -18,8 +24,29 @@ message MapResponse {
   bool success = 1;  // Indicates whether mapping was successful or not
 }
 
+message ReturnDataRequest {
+  int32 reducer_id = 1;
+}
+
+message ReturnDataResponse {
+  repeated DataPoint data_points = 1;
+}
+
+message StartReduceRequest {
+  repeated int32 mapper_ids = 1;
+}
+
+message StartReduceResponse {
+  bool success = 1;
+}
+
 
 
 service Mapper {
   rpc Map(MapRequest) returns (MapResponse) {}
+  rpc ReturnData(ReturnDataRequest) returns (ReturnDataResponse) {}
+}
+
+service Reducer {
+  rpc StartReduce(StartReduceRequest) returns (StartReduceResponse) {}
 }

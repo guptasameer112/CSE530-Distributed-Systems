@@ -1,13 +1,18 @@
 syntax = "proto3";
 
-service Mapper {
-  rpc GetPartitions(GetPartitionsRequest) returns (stream GetPartitionsResponse);
+package reducer_mapper;
+
+service ReducerMapper {
+  rpc ReceivePartition(PartitionRequest) returns (EmptyResponse);
 }
 
-message GetPartitionsRequest {
-  int32 reducer_id = 1;
+message PartitionRequest {
+  repeated Partition partitions = 1;
 }
 
-message GetPartitionsResponse {
-  repeated DataPoint partition = 1;
+message Partition {
+  int32 centroid_id = 1;
+  repeated float values = 2;
 }
+
+message EmptyResponse {}

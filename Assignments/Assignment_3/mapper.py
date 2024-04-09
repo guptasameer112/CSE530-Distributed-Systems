@@ -4,8 +4,8 @@ import grpc
 from concurrent import futures
 import master_mapper_pb2
 import master_mapper_pb2_grpc
-# import master_mapper_pb2
-# import master_mapper_pb2_grpc
+import reducer_mapper_pb2
+import reducer_mapper_pb2_grpc
 import numpy as np
 
 # Calculate distance between two points
@@ -35,14 +35,12 @@ def map_function(start_line, end_line, centroids):
     return mapped_results
 
 # Implement the Partition function
-def make_partition(mapped_results, num_reducers):
-    print(mapped_results)
-    print(num_reducers)
-    partitions = [[] for _ in range(num_reducers)]
-    for centroid_id, point in mapped_results:
-        reducer_id = centroid_id % num_reducers
-        partitions[reducer_id].append((centroid_id, point))
-    return partitions
+def make_partition(mapped_results, mapper_id, num_reducers):
+    for i in range(len(mapped_results)):
+        file_id = i % num_reducers
+        file_path = f'Data/Mapper/M{mapper_id}/partition_{file_id}.txt'
+        with open(file_path, 'a') as file:
+            file.write(f'{mapped_results[i][0]}\t{mapped_results[i][1][0]}\t{mapped_results[i][1][1]}\n')
 
 # Mapper service
 class MapperServicer(master_mapper_pb2_grpc.MapperServicer):
@@ -63,23 +61,11 @@ class MapperServicer(master_mapper_pb2_grpc.MapperServicer):
             data_points = map_function(line_numbers[mapper_id][0], line_numbers[mapper_id][1], self.centroids)
             self.data_points.extend(data_points)
             print(f'Mapper {self.mapper_id} processed {len(data_points)} data points')
-
-
             mapped_results = data_points
 
         # Call Partition function
-            partitions = make_partition(mapped_results, request.num_reducers)
-
-            print("Partitions:", partitions)
-
-            # Write partitions to file
-            print(f'Writing partitions to file')
-            for reducer_id, partition in enumerate(partitions):
-                partition_file = f'Data/Mapper/M{self.mapper_id}/partition_{reducer_id}.txt'
-                os.makedirs(os.path.dirname(partition_file), exist_ok=True)
-                with open(partition_file, 'w') as f:
-                    for centroid_id, point in partition:
-                        f.write(f"{centroid_id} {point}\n")
+            make_partition(mapped_results, self.mapper_id, len(request.centroids))
+            print(f'Wrote partitions to files.')
 
             return master_mapper_pb2.MapResponse(success=True)
             
@@ -91,25 +77,11 @@ class MapperServicer(master_mapper_pb2_grpc.MapperServicer):
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(f'Error in Map: {e}')
             return master_mapper_pb2.MapResponse(success=False)
-        
-    # def Partition(self, request, context):
-    #     # Using the number of reducers and a mod function along with data_points obtained from Map, assign each data point to a reducer, and by that I mean write it to a file partition_{reducer_id}.txt inside the Data/Input/Mapper/M{self.mapper_id} directory
 
-    #     # Extract data points
-        
+# class ReducerMapperServicer(reducer_mapper_pb2_grpc.ReducerMapperServicer):
+    def RequestData(self, request, context):
+        reducer_id = request.reducer_id
 
-    #     # Send success message to master
-    #     return master_mapper_pb2.PartitionResponse(status="Success")
-    
-    # def GetPartitions(self, request, context):
-    #     # Read requested partition from file and send to reducer
-    #     reducer_id = request.reducer_id
-    #     input_directory = f'Data/Input/Mapper/M{self.mapper_id}'
-    #     partition_file_path = f'{input_directory}/partition_{reducer_id}.txt'
-    #     with open(partition_file_path, 'r') as f:
-    #         for line in f:
-    #             point = eval(line.strip())
-    #             yield reducer_mapper_pb2.GetPartitionsResponse(partition=point)
 
 
 def serve(mapper_id, port):

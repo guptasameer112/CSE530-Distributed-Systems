@@ -1,0 +1,20 @@
+// master_reducer.proto
+
+syntax = "proto3";
+
+service Reducer {
+  rpc Reduce(ReduceRequest) returns (ReduceResponse) {}
+}
+
+message ReduceRequest {
+  int32 reducer_id = 1;
+}
+
+message ReduceResponse {
+  repeated UpdatedCentroid updated_centroids = 1;
+}
+
+message UpdatedCentroid {
+  int32 centroid_id = 1;
+  repeated float values = 2;
+}
