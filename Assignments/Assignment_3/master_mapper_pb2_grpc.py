@@ -19,12 +19,23 @@ class MapperStub(object):
                 request_serializer=master__mapper__pb2.MapRequest.SerializeToString,
                 response_deserializer=master__mapper__pb2.MapResponse.FromString,
                 )
+        self.ReturnData = channel.unary_unary(
+                '/Mapper/ReturnData',
+                request_serializer=master__mapper__pb2.ReturnDataRequest.SerializeToString,
+                response_deserializer=master__mapper__pb2.ReturnDataResponse.FromString,
+                )
 
 
 class MapperServicer(object):
     """Missing associated documentation comment in .proto file."""
 
     def Map(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ReturnData(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -37,6 +48,11 @@ def add_MapperServicer_to_server(servicer, server):
                     servicer.Map,
                     request_deserializer=master__mapper__pb2.MapRequest.FromString,
                     response_serializer=master__mapper__pb2.MapResponse.SerializeToString,
+            ),
+            'ReturnData': grpc.unary_unary_rpc_method_handler(
+                    servicer.ReturnData,
+                    request_deserializer=master__mapper__pb2.ReturnDataRequest.FromString,
+                    response_serializer=master__mapper__pb2.ReturnDataResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -62,5 +78,83 @@ class Mapper(object):
         return grpc.experimental.unary_unary(request, target, '/Mapper/Map',
             master__mapper__pb2.MapRequest.SerializeToString,
             master__mapper__pb2.MapResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def ReturnData(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/Mapper/ReturnData',
+            master__mapper__pb2.ReturnDataRequest.SerializeToString,
+            master__mapper__pb2.ReturnDataResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+
+class ReducerStub(object):
+    """Missing associated documentation comment in .proto file."""
+
+    def __init__(self, channel):
+        """Constructor.
+
+        Args:
+            channel: A grpc.Channel.
+        """
+        self.StartReduce = channel.unary_unary(
+                '/Reducer/StartReduce',
+                request_serializer=master__mapper__pb2.StartReduceRequest.SerializeToString,
+                response_deserializer=master__mapper__pb2.StartReduceResponse.FromString,
+                )
+
+
+class ReducerServicer(object):
+    """Missing associated documentation comment in .proto file."""
+
+    def StartReduce(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+
+def add_ReducerServicer_to_server(servicer, server):
+    rpc_method_handlers = {
+            'StartReduce': grpc.unary_unary_rpc_method_handler(
+                    servicer.StartReduce,
+                    request_deserializer=master__mapper__pb2.StartReduceRequest.FromString,
+                    response_serializer=master__mapper__pb2.StartReduceResponse.SerializeToString,
+            ),
+    }
+    generic_handler = grpc.method_handlers_generic_handler(
+            'Reducer', rpc_method_handlers)
+    server.add_generic_rpc_handlers((generic_handler,))
+
+
+ # This class is part of an EXPERIMENTAL API.
+class Reducer(object):
+    """Missing associated documentation comment in .proto file."""
+
+    @staticmethod
+    def StartReduce(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/Reducer/StartReduce',
+            master__mapper__pb2.StartReduceRequest.SerializeToString,
+            master__mapper__pb2.StartReduceResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

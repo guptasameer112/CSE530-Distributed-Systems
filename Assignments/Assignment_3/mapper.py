@@ -5,7 +5,6 @@ from concurrent import futures
 import master_mapper_pb2
 import master_mapper_pb2_grpc
 import reducer_mapper_pb2
-import reducer_mapper_pb2_grpc
 import numpy as np
 
 # Calculate distance between two points
@@ -36,11 +35,12 @@ def map_function(start_line, end_line, centroids):
 
 # Implement the Partition function
 def make_partition(mapped_results, mapper_id, num_reducers):
-    for i in range(len(mapped_results)):
-        file_id = i % num_reducers
+    for centroid_id, point in mapped_results:
+        file_id = centroid_id % num_reducers
         file_path = f'Data/Mapper/M{mapper_id}/partition_{file_id}.txt'
         with open(file_path, 'a') as file:
-            file.write(f'{mapped_results[i][0]}\t{mapped_results[i][1][0]}\t{mapped_results[i][1][1]}\n')
+            file.write(f'{centroid_id}\t{point[0]}\t{point[1]}\n')
+
 
 # Mapper service
 class MapperServicer(master_mapper_pb2_grpc.MapperServicer):
@@ -64,7 +64,7 @@ class MapperServicer(master_mapper_pb2_grpc.MapperServicer):
             mapped_results = data_points
 
         # Call Partition function
-            make_partition(mapped_results, self.mapper_id, len(request.centroids))
+            make_partition(mapped_results, self.mapper_id, num_reducers=request.num_reducers)
             print(f'Wrote partitions to files.')
 
             return master_mapper_pb2.MapResponse(success=True)
@@ -79,8 +79,22 @@ class MapperServicer(master_mapper_pb2_grpc.MapperServicer):
             return master_mapper_pb2.MapResponse(success=False)
 
 # class ReducerMapperServicer(reducer_mapper_pb2_grpc.ReducerMapperServicer):
-    def RequestData(self, request, context):
+    def ReturnData(self, request, context):
+        print(f'Reducer {request.reducer_id} requesting data from Mapper {self.mapper_id}')
         reducer_id = request.reducer_id
+
+        # read from partition file and send to reducer
+        file_path = f'Data/Mapper/M{self.mapper_id}/partition_{reducer_id}.txt'
+        data_points = []
+        with open(file_path, 'r') as file:
+            for line in file:
+                centroid_id, x, y = map(float, line.strip().split('\t'))
+                centroid_id = int(centroid_id)
+                data_points.append((centroid_id, [x, y]))
+
+
+        print(f'Mapper {self.mapper_id} sending {len(data_points)} data points to Reducer {reducer_id}')
+        return master_mapper_pb2.ReturnDataResponse(data_points= [master_mapper_pb2.DataPoint(centroid_id=centroid_id, x=x, y=y) for centroid_id, [x, y] in data_points])
 
 
 
