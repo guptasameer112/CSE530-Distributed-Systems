@@ -121,8 +121,8 @@ class MapperServicer(master_mapper_reducer_pb2_grpc.MapperServicer):
                 data_points.append((centroid_id, [x, y]))
 
         # print(f'Mapper {self.mapper_id} sending {len(data_points)} data points to Reducer {reducer_id}')
-        response = master_mapper_reducer_pb2.ReturnDataResponse(data_points= [master_mapper_reducer_pb2.DataPoint(centroid_id=centroid_id, x=x, y=y) for centroid_id, [x, y] in data_points])
-        return response
+        return master_mapper_reducer_pb2.ReturnDataResponse(data_points= [master_mapper_reducer_pb2.DataPoint(centroid_id=centroid_id, x=x, y=y) for centroid_id, [x, y] in data_points])
+
 
 def serve(mapper_id, port):
     '''
