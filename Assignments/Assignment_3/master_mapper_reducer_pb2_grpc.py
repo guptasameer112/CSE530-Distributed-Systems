@@ -2,7 +2,7 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-import master_mapper_pb2 as master__mapper__pb2
+import master_mapper_reducer_pb2 as master__mapper__reducer__pb2
 
 
 class MapperStub(object):
@@ -16,13 +16,13 @@ class MapperStub(object):
         """
         self.Map = channel.unary_unary(
                 '/Mapper/Map',
-                request_serializer=master__mapper__pb2.MapRequest.SerializeToString,
-                response_deserializer=master__mapper__pb2.MapResponse.FromString,
+                request_serializer=master__mapper__reducer__pb2.MapRequest.SerializeToString,
+                response_deserializer=master__mapper__reducer__pb2.MapResponse.FromString,
                 )
         self.ReturnData = channel.unary_unary(
                 '/Mapper/ReturnData',
-                request_serializer=master__mapper__pb2.ReturnDataRequest.SerializeToString,
-                response_deserializer=master__mapper__pb2.ReturnDataResponse.FromString,
+                request_serializer=master__mapper__reducer__pb2.ReturnDataRequest.SerializeToString,
+                response_deserializer=master__mapper__reducer__pb2.ReturnDataResponse.FromString,
                 )
 
 
@@ -46,13 +46,13 @@ def add_MapperServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'Map': grpc.unary_unary_rpc_method_handler(
                     servicer.Map,
-                    request_deserializer=master__mapper__pb2.MapRequest.FromString,
-                    response_serializer=master__mapper__pb2.MapResponse.SerializeToString,
+                    request_deserializer=master__mapper__reducer__pb2.MapRequest.FromString,
+                    response_serializer=master__mapper__reducer__pb2.MapResponse.SerializeToString,
             ),
             'ReturnData': grpc.unary_unary_rpc_method_handler(
                     servicer.ReturnData,
-                    request_deserializer=master__mapper__pb2.ReturnDataRequest.FromString,
-                    response_serializer=master__mapper__pb2.ReturnDataResponse.SerializeToString,
+                    request_deserializer=master__mapper__reducer__pb2.ReturnDataRequest.FromString,
+                    response_serializer=master__mapper__reducer__pb2.ReturnDataResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -76,8 +76,8 @@ class Mapper(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/Mapper/Map',
-            master__mapper__pb2.MapRequest.SerializeToString,
-            master__mapper__pb2.MapResponse.FromString,
+            master__mapper__reducer__pb2.MapRequest.SerializeToString,
+            master__mapper__reducer__pb2.MapResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -93,8 +93,8 @@ class Mapper(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/Mapper/ReturnData',
-            master__mapper__pb2.ReturnDataRequest.SerializeToString,
-            master__mapper__pb2.ReturnDataResponse.FromString,
+            master__mapper__reducer__pb2.ReturnDataRequest.SerializeToString,
+            master__mapper__reducer__pb2.ReturnDataResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -110,8 +110,8 @@ class ReducerStub(object):
         """
         self.StartReduce = channel.unary_unary(
                 '/Reducer/StartReduce',
-                request_serializer=master__mapper__pb2.StartReduceRequest.SerializeToString,
-                response_deserializer=master__mapper__pb2.StartReduceResponse.FromString,
+                request_serializer=master__mapper__reducer__pb2.StartReduceRequest.SerializeToString,
+                response_deserializer=master__mapper__reducer__pb2.StartReduceResponse.FromString,
                 )
 
 
@@ -129,8 +129,8 @@ def add_ReducerServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'StartReduce': grpc.unary_unary_rpc_method_handler(
                     servicer.StartReduce,
-                    request_deserializer=master__mapper__pb2.StartReduceRequest.FromString,
-                    response_serializer=master__mapper__pb2.StartReduceResponse.SerializeToString,
+                    request_deserializer=master__mapper__reducer__pb2.StartReduceRequest.FromString,
+                    response_serializer=master__mapper__reducer__pb2.StartReduceResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -154,7 +154,7 @@ class Reducer(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/Reducer/StartReduce',
-            master__mapper__pb2.StartReduceRequest.SerializeToString,
-            master__mapper__pb2.StartReduceResponse.FromString,
+            master__mapper__reducer__pb2.StartReduceRequest.SerializeToString,
+            master__mapper__reducer__pb2.StartReduceResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

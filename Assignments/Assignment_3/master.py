@@ -1,60 +1,52 @@
 import grpc
 import sys
-import master_mapper_pb2
-import master_mapper_pb2_grpc
+import os
+import utils
+import master_mapper_reducer_pb2
+import master_mapper_reducer_pb2_grpc
 import random
-
-def split_input_data(num_lines, num_mappers):
-    lines_per_mapper = num_lines // num_mappers
-    input_splits = []
-    start_line = 0
-    for i in range(num_mappers):
-        end_line = start_line + lines_per_mapper
-        if i == num_mappers - 1:  # Last mapper gets remaining lines
-            end_line = num_lines
-        input_splits.append((start_line, end_line))
-        start_line = end_line
-    print(f'Input splits: {input_splits}')
-    return input_splits
+import subprocess
 
 def compile_centroids(reducer_outputs):
-    # collect all the centroids from all the reducers
-    updated_centroids = {}
+    '''
+    Concatenates from reducer outputs to get the updated centroids
+
+    Input:
+    - reducer_outputs: List of dictionaries, where each dictionary represents the output of a reducer
+    example: {0: [3.0, 4.0], 1: [6.0, 7.0], 2: [9.0, 10.0], 3: [12.0, 13.0]}
+
+    Output:
+    - List of updated centroids which will be used in the next iteration
+    example: [[3.0, 4.0], [6.0, 7.0], [9.0, 10.0], [12.0, 13.0]]
+    - write to centroids.txt
+    format: 3.0 , 4.0
+            6.0 , 7.0
+    '''
+    updated_centroids = []
     for reducer_output in reducer_outputs:
         for centroid_id, centroid in reducer_output.items():
-            if centroid_id not in updated_centroids:
-                updated_centroids[centroid_id] = []
-            updated_centroids[centroid_id].append(centroid)
-
-    print(f'Updated centroids: {updated_centroids}')
-
-    # Store the updated centroids for the next iteration in comma separated format
-    returned_centroids = [[sum(x) / len(centroids) for x in zip(*centroids)] for centroid_id, centroids in updated_centroids.items()]
+            updated_centroids.append(centroid)
 
     with open('Data/centroids.txt', 'w') as f:
-        for centroid_id, centroids in updated_centroids.items():
-            updated_centroid = [sum(x) / len(centroids) for x in zip(*centroids)]
-            f.write(','.join(map(str, updated_centroid)) + '\n')
+        for centroid in updated_centroids:
+            f.write(','.join(map(str, centroid)) + '\n')
 
-    return returned_centroids
+    return updated_centroids
 
-def run_iteration(input_data, num_mappers, num_reducers, centroids):
-    print('centroids: ', centroids)
-    # Split input data
-    number_of_lines = len(input_data)
-    input_splits = split_input_data(number_of_lines, num_mappers)
-    print(input_splits)
-
+def run_iteration(input_splits, num_mappers, num_reducers, centroids):
     # Initialize gRPC channels to mappers
     mapper_channels = [grpc.insecure_channel(f'localhost:{50051 + i}') for i in range(num_mappers)]
-    mapper_stubs = [master_mapper_pb2_grpc.MapperStub(channel) for channel in mapper_channels]
+    mapper_stubs = [master_mapper_reducer_pb2_grpc.MapperStub(channel) for channel in mapper_channels]
 
+    # Initialize gRPC channels to reducers
+    reducer_channels = [grpc.insecure_channel(f'localhost:{50051 + num_mappers + i}') for i in range(num_reducers)]
+    reducer_stubs = [master_mapper_reducer_pb2_grpc.ReducerStub(channel) for channel in reducer_channels]
+    
     # Step 1: Map phase and Partition phase
     map_response_count = 0
     for mapper_id, mapper_stub in enumerate(mapper_stubs):
-        response_centroids = [master_mapper_pb2.Point(x = a, y = b) for a,b in centroids]
-        print(response_centroids)
-        mapper_request = master_mapper_pb2.MapRequest(start_index=[x[0] for x in input_splits], end_index = [x[1] for x in input_splits], num_reducers = num_reducers, centroids = response_centroids)
+        response_centroids = [master_mapper_reducer_pb2.Point(x = a, y = b) for a,b in centroids] # convert centroids to protobuf format
+        mapper_request = master_mapper_reducer_pb2.MapRequest(start_index=[x[0] for x in input_splits], end_index = [x[1] for x in input_splits], num_reducers = num_reducers, centroids = response_centroids) # create request
         response = mapper_stub.Map(mapper_request)
         if response.success:
             map_response_count += 1
@@ -63,13 +55,9 @@ def run_iteration(input_data, num_mappers, num_reducers, centroids):
     if map_response_count != num_mappers:
         print("Error in map phase")
 
-    # Initialize gRPC channels to reducers
-    reducer_channels = [grpc.insecure_channel(f'localhost:{50051 + num_mappers + i}') for i in range(num_reducers)]
-    reducer_stubs = [master_mapper_pb2_grpc.ReducerStub(channel) for channel in reducer_channels]
-
     reduce_response_count = 0
     for reducer_id, reducer_stub in enumerate(reducer_stubs):
-        reducer_request = master_mapper_pb2.StartReduceRequest(mapper_ids = list(range(num_mappers)))
+        reducer_request = master_mapper_reducer_pb2.StartReduceRequest(mapper_ids = list(range(num_mappers)))
         response = reducer_stub.StartReduce(reducer_request)
         if response.success:
             reduce_response_count += 1
@@ -77,77 +65,81 @@ def run_iteration(input_data, num_mappers, num_reducers, centroids):
     if reduce_response_count != num_reducers:
         print("Error in reducer phase")
 
-    # parse output files generated by reducers
-    reducer_outputs = []
+
+    '''
+    parse output files generated by reducers
+
+    Input: 
+    centroid_id x y
+
+    Output:
+    [{0: [1.0, 2.0], 1: [3.0, 4.0]}, {2: [5.0, 6.0], 3: [7.0, 8.0]}]
+    '''
+    compiled_reducers_output_ = []
     for i in range(num_reducers):
         with open(f'Data/Reducer/R{i}/reducer_output.txt', 'r') as f:
             reducer_output = {}
             for line in f:
-                centroid_id, x, y = map(float, line.strip().split(' '))
-                centroid = [x, y]
-                reducer_output[int(centroid_id)] = centroid
-            reducer_outputs.append(reducer_output)
+                parts = line.strip().split()
+                centroid_id = int(parts[0])
+                x = float(parts[1])
+                y = float(parts[2])
+                reducer_output[centroid_id] = [x, y]
+            compiled_reducers_output_.append(reducer_output)
 
-    return compile_centroids(reducer_outputs)
+    return compile_centroids(compiled_reducers_output_)
 
-
-
-
-
-    # reducer_outputs = []
-    # for reducer_id, reducer_stub in enumerate(reducer_stubs):
-    #     reducer_request = master_reducer_pb2.ReduceRequest(reducer_id=reducer_id)
-    #     reducer_output_stream = reducer_stub.Reduce(reducer_request)
-    #     for response in reducer_output_stream:
-    #         # Process each ReduceResponse
-    #         updated_centroids = [(centroid.centroid_id, centroid.values) for centroid in response.updated_centroids]
-    #         reducer_outputs.append(updated_centroids)
-
-    # return reducer_outputs
-
-    # compile_centroids(reducer_outputs)
 
 
 if __name__ == '__main__':
 
-    # Parse command line arguments
-    num_mappers = int(sys.argv[1])
-    num_reducers = int(sys.argv[2])
-    num_iterations = int(sys.argv[3])
-    num_clusters = int(sys.argv[4])
-
-    print(f'Number of mappers: {num_mappers}')
-    print(f'Number of reducers: {num_reducers}')
-    print(f'Number of iterations: {num_iterations}')
-    print(f'Number of clusters: {num_clusters}')
-
-    input_data_file = "Data/Input/points.txt"
-    centroids_file = "Data/centroids.txt"
-
-    # read input data
-    with open(input_data_file, 'r') as f:
-        input_data = [list(map(float, line.strip().split(','))) for line in f]
-    print(f'Input data: {input_data}')
-
+    input_data_points_filepath = "Data/Input/points.txt"
+    centroids_file_path = "Data/centroids.txt"
     centroids = []
 
-    # Generate random initial centroids
-    with open(centroids_file, 'w') as f:
+    # Input data points
+    with open(input_data_points_filepath, 'r') as f:
+        input_data_points = [list(map(float, line.strip().split(','))) for line in f]
+    
+    # Inputs
+    inputs = [int(x) for x in sys.argv[1:5]]
+    num_mappers, num_reducers, num_iterations, num_clusters = inputs
+
+    dump_file = 'test_outputs/dump.txt'
+    dump_file = open(dump_file, 'w')
+    dump_file.write(f'Input data points: {input_data_points}\n')
+    dump_file.write(f'Number of mappers: {num_mappers}\n')
+    dump_file.write(f'Number of reducers: {num_reducers}\n')
+    dump_file.write(f'Number of iterations: {num_iterations}\n')
+    dump_file.write(f'Number of clusters: {num_clusters}\n')
+
+    # Make Directories
+    for i in range(num_mappers):
+        os.makedirs(f'Data/Mapper/M{i}', exist_ok=True)
+    for i in range(num_reducers):
+        os.makedirs(f'Data/Reducer/R{i}', exist_ok=True)
+
+    # Input splits
+    input_splits = utils.split_input_data(len(input_data_points), num_mappers)
+    dump_file.write(f'Input splits generated: {input_splits}\n')
+
+    # Initial Centroids
+    with open(centroids_file_path, 'w') as f:
         for _ in range(num_clusters):
-            # Choose k initial means µ1, . . . , µk uniformly at random from the set X.
-            centroid = random.choice(input_data)
+            centroid = random.choice(input_data_points)
             centroids.append(centroid)
-            print(f'Initial centroid: {centroid}')
-            f.write(' '.join(map(str, centroid)) + '\n')
+            f.write(f'Initial centroid point{_}: ' + ','.join(map(str, centroid)) + '\n')
+    dump_file.write(f'Initial centroids: {centroids}\n')
 
-    print(f'Initial centroids: {centroids}')
-
-    # Run iterations and if they converge before num_iterations, stop early
+    # Iterations and convergence
     for i in range(num_iterations):
-        updated_centroids = run_iteration(input_data, num_mappers, num_reducers, centroids)
-        print(f'Iteration {i + 1}: {updated_centroids}')
+        dump_file.write(f'\nIteration {i + 1}: \n')
+        updated_centroids = run_iteration(input_splits, num_mappers, num_reducers, centroids)
+        dump_file.write(f'Updated centroids for iteration_{i}: {updated_centroids}\n')
         if updated_centroids == centroids:
             break
         centroids = updated_centroids
+    dump_file.write(f'\nFinal centroids after {i + 1} iterations: {centroids}\n')
+    dump_file.close()
 
-    print(f'Final centroids: {updated_centroids}')
+    print(f'Final centroids after {i + 1} iterations: {centroids}')
