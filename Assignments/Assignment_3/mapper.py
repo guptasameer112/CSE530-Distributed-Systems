@@ -82,7 +82,7 @@ class MapperServicer(master_mapper_reducer_pb2_grpc.MapperServicer):
     def __init__(self, mapper_id):
         self.mapper_id = mapper_id
         self.centroids = []
-        self.data_point_to_centroid_map = []
+        self.data_point_to_centroid_map = [] # (centroid_id, datapoint)
 
     def Map(self, request, context):
         # Obtain line numbers and centroids from gRPC request
@@ -117,7 +117,8 @@ class MapperServicer(master_mapper_reducer_pb2_grpc.MapperServicer):
         # Send data points to the reducer from the data_point_to_centroid_map
         data_points = []
         for centroid_id, [x, y] in self.data_point_to_centroid_map:
-            if centroid_id == reducer_id:
+            if centroid_id == reducer_id: 
+                # NOTE: Change this to mod for cases where k > r
                 data_points.append((centroid_id, [x, y]))
 
         # print(f'Mapper {self.mapper_id} sending {len(data_points)} data points to Reducer {reducer_id}')

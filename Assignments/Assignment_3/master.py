@@ -51,7 +51,7 @@ def run_iteration(input_splits, num_mappers, num_reducers, centroids):
         if response.success:
             map_response_count += 1
 
-    # for fault tollerence, first check if all mappers have completed their task
+    # for fault tolarence, first check if all mappers have completed their task
     if map_response_count != num_mappers:
         print("Error in map phase")
 
