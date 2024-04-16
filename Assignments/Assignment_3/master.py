@@ -136,8 +136,9 @@ if __name__ == '__main__':
         dump_file.write(f'\nIteration {i + 1}: \n')
         updated_centroids = run_iteration(input_splits, num_mappers, num_reducers, centroids)
         dump_file.write(f'Updated centroids for iteration_{i}: {updated_centroids}\n')
-        if updated_centroids == centroids:
-            break
+        # commented because of premature convergences
+        # if updated_centroids == centroids:
+        #     break
         centroids = updated_centroids
     dump_file.write(f'\nFinal centroids after {i + 1} iterations: {centroids}\n')
     dump_file.close()

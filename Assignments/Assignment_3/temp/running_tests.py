@@ -36,7 +36,7 @@ def update_centroids(clusters):
         new_centroids.append(new_centroid)
     return np.array(new_centroids)
 
-def kmeans(data_points, k, max_iterations=2, tol=1e-4):
+def kmeans(data_points, k, max_iterations=100, tol=1e-4):
     # Initialize centroids randomly
     centroids = data_points[np.random.choice(len(data_points), k, replace=False)]
     # take the first two points as initial centroids

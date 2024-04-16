@@ -28,7 +28,7 @@ def map_function(start_line, end_line, centroids):
     centroids: list of centroids
 
     Output:
-    mapped_results: [(0, [1.0, 2.0]), (1, [3.0, 4.0]), (0, [5.0, 6.0]), (1, [7.0, 8.0]), ...]
+    mapped_results: [(0, [1.0, 2.0], 1), (1, [3.0, 4.0], 1), (0, [5.0, 6.0], 1), (1, [7.0, 8.0], 1), ...]
     '''
     data_point_to_centroid_map = []
     data_input_file_path = 'Data/Input/points.txt'
@@ -49,7 +49,7 @@ def map_function(start_line, end_line, centroids):
                         min_distance = distance
                         nearest_centroid = centroid_id
                         print(f"min_distance for point {point} is {min_distance} and nearest_centroid is {nearest_centroid}")
-                data_point_to_centroid_map.append((nearest_centroid, point))
+                data_point_to_centroid_map.append((nearest_centroid, point, 1))
                 print(f"point {point} is mapped to centroid {nearest_centroid}")
     return data_point_to_centroid_map
 
@@ -58,12 +58,13 @@ def write_partitions_to_files(data_point_to_centroid_map, mapper_id, num_reducer
     Based on hash of the centroid_id, write the data points to the respective partition files
     
     Input:
-    mapped_results: [(0, [1.0, 2.0]), (1, [3.0, 4.0]), (0, [5.0, 6.0]), (1, [7.0, 8.0]), ...]
+    mapped_results: [(0, [1.0, 2.0], 1), (1, [3.0, 4.0], 1), (0, [5.0, 6.0], 1), (1, [7.0, 8.0], 1), ...]
     mapper_id: int
     num_reducers: int
     
     Output:
     partition files
+    data_point_to_centroid_map: [(0, [1.0, 2.0]), (1, [3.0, 4.0]), (0, [5.0, 6.0]), (1, [7.0, 8.0]), ...]
     '''
 
     for reducer_id in range(num_reducers):
@@ -71,11 +72,15 @@ def write_partitions_to_files(data_point_to_centroid_map, mapper_id, num_reducer
         with open(file_path, 'w') as file:
             file.write('')
 
-    for centroid_id, point in data_point_to_centroid_map:
+    for centroid_id, point, count in data_point_to_centroid_map:
         reducer_id = centroid_id % num_reducers
         file_path = f'Data/Mapper/M{mapper_id}/partition_{reducer_id}.txt'
         with open(file_path, 'a') as file:
-            file.write(f'{centroid_id}\t{point[0]}\t{point[1]}\n')
+            file.write(f'{centroid_id}\t{point[0]}\t{point[1]}\t{count}\n')
+
+    # remove count from the data_point_to_centroid_map
+    data_point_to_centroid_map = [(centroid_id, point) for centroid_id, point, count in data_point_to_centroid_map]
+    return data_point_to_centroid_map
 
 # Mapper service
 class MapperServicer(master_mapper_reducer_pb2_grpc.MapperServicer):
@@ -83,11 +88,13 @@ class MapperServicer(master_mapper_reducer_pb2_grpc.MapperServicer):
         self.mapper_id = mapper_id
         self.centroids = []
         self.data_point_to_centroid_map = [] # (centroid_id, datapoint)
+        self.num_reducers = 0
 
     def Map(self, request, context):
         # Obtain line numbers and centroids from gRPC request
         line_numbers = [(x, y) for x,y in zip(request.start_index, request.end_index)]
         self.centroids = [[point.x, point.y] for point in request.centroids]
+        self.num_reducers = request.num_reducers
 
         # print("Centroids received by Mapper: ", self.centroids)
         
@@ -99,7 +106,7 @@ class MapperServicer(master_mapper_reducer_pb2_grpc.MapperServicer):
             # print(f"first 5 data points from mapper {self.mapper_id} are: {self.data_point_to_centroid_map[:5]}")
 
             # Call Partition function
-            write_partitions_to_files(data_point_to_centroid_map, self.mapper_id, num_reducers=request.num_reducers)
+            self.data_point_to_centroid_map = write_partitions_to_files(data_point_to_centroid_map, self.mapper_id, num_reducers=request.num_reducers)
             # print(f'Mapper {self.mapper_id} wrote partitions to files.')
             return master_mapper_reducer_pb2.MapResponse(success=True)
         
@@ -117,7 +124,7 @@ class MapperServicer(master_mapper_reducer_pb2_grpc.MapperServicer):
         # Send data points to the reducer from the data_point_to_centroid_map
         data_points = []
         for centroid_id, [x, y] in self.data_point_to_centroid_map:
-            if centroid_id == reducer_id: 
+            if centroid_id % self.num_reducers == reducer_id: 
                 # NOTE: Change this to mod for cases where k > r
                 data_points.append((centroid_id, [x, y]))
 
