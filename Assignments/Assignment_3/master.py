@@ -5,8 +5,6 @@ import utils
 import master_mapper_reducer_pb2
 import master_mapper_reducer_pb2_grpc
 import random
-import subprocess
-from concurrent.futures import ThreadPoolExecutor
 import asyncio
 
 def compile_centroids(reducer_outputs):
@@ -24,6 +22,7 @@ def compile_centroids(reducer_outputs):
     format: 3.0 , 4.0
             6.0 , 7.0
     '''
+
     updated_centroids = []
     for reducer_output in reducer_outputs:
         for centroid_id, centroid in reducer_output.items():
@@ -36,6 +35,18 @@ def compile_centroids(reducer_outputs):
     return updated_centroids
 
 async def map_rpc(mapper_stub, mapper_request, max_retries=10):
+    '''
+    RPC call to the mapper
+    
+    Input:
+    - mapper_stub: gRPC mapper stub
+    - mapper_request: gRPC request to the mapper
+    - max_retries: maximum number of retries in case of failure
+    
+    Output:
+    - gRPC response from the mapper
+    '''
+
     count = 0
     res = mapper_stub.Map(mapper_request)
     while ((isinstance(res, Exception) or not res.success) and count < max_retries):
@@ -45,6 +56,21 @@ async def map_rpc(mapper_stub, mapper_request, max_retries=10):
     return res
 
 async def map_phase(input_splits, num_mappers, num_reducers, centroids, mapper_stubs, max_map_retries=10, is_retry=False):
+    '''
+    Map phase of the KMeans algorithm
+    
+    Input:
+    - input_splits: list of tuples containing the start and end index of the data points
+    - num_mappers: number of mappers
+    - num_reducers: number of reducers
+    - centroids: list of centroids
+    - mapper_stubs: list of gRPC mapper stubs
+    - max_map_retries: maximum number of retries in case of failure
+    - is_retry: boolean indicating if the current phase is a retry
+    
+    Output:
+    - list of gRPC responses from the mappers
+    '''
     
     try:
         tasks = []
@@ -63,6 +89,18 @@ async def map_phase(input_splits, num_mappers, num_reducers, centroids, mapper_s
         print(e)
 
 async def reduce_rpc(reducer_stub, reducer_request, max_retries=10):
+    '''
+    RPC call to the reducer
+    
+    Input:
+    - reducer_stub: gRPC reducer stub
+    - reducer_request: gRPC request to the reducer
+    - max_retries: maximum number of retries in case of failure
+    
+    Output:
+    - gRPC response from the reducer
+    '''
+
     count = 0
     res = reducer_stub.StartReduce(reducer_request)
     while ((isinstance(res, Exception) or not res.success) and count < max_retries):
@@ -72,6 +110,20 @@ async def reduce_rpc(reducer_stub, reducer_request, max_retries=10):
     return res
 
 async def reduce_phase(num_mappers, reducer_stubs, successful_map_indices,  max_reduce_retries=3, is_retry=False):
+    '''
+    Reduce phase of the KMeans algorithm
+    
+    Input:
+    - num_mappers: number of mappers
+    - reducer_stubs: list of gRPC reducer stubs
+    - successful_map_indices: list of indices of successful mappers
+    - max_reduce_retries: maximum number of retries in case of failure
+    - is_retry: boolean indicating if the current phase is a retry
+
+    Output:
+    - list of gRPC responses from the reducers
+    '''
+
     try:
         tasks = []
         for reducer_id, reducer_stub in enumerate(reducer_stubs):
@@ -85,7 +137,6 @@ async def reduce_phase(num_mappers, reducer_stubs, successful_map_indices,  max_
 
 def run_iteration(input_splits, num_mappers, num_reducers, centroids):
     # Initialize gRPC channels to mappers
-
     mapper_channels = [grpc.insecure_channel(f'localhost:{50051 + i}') for i in range(num_mappers)]
     mapper_stubs = [master_mapper_reducer_pb2_grpc.MapperStub(channel) for channel in mapper_channels]
 
@@ -93,8 +144,14 @@ def run_iteration(input_splits, num_mappers, num_reducers, centroids):
     reducer_channels = [grpc.insecure_channel(f'localhost:{50051 + num_mappers + i}') for i in range(num_reducers)]
     reducer_stubs = [master_mapper_reducer_pb2_grpc.ReducerStub(channel) for channel in reducer_channels]
     
+    # <-------------------------------------------------------------------------------------------------->
+
     # Step 1: Map phase and Partition phase
+    # Printing "Execution of gRPC calls to the Mapper"
+    print("Execution of gRPC calls to the Mapper begins...")
     map_responses = asyncio.run(map_phase(input_splits, num_mappers, num_reducers, centroids, mapper_stubs, is_retry=False))
+
+    # Printing ("gRPC response for each mapper")
     print(f'map_responses:{map_responses}')
     # Check if all mappers have completed their task
     successful_map_indices = [i for i, response in enumerate(map_responses) if not isinstance(response, Exception) and response.success]
@@ -112,13 +169,20 @@ def run_iteration(input_splits, num_mappers, num_reducers, centroids):
 
         map_responses = asyncio.run(map_phase(updated_input_splits, len(successful_map_indices), num_reducers, centroids, mapper_stubs, is_retry=True))
 
-    
+
+    # <------------------------------------------------------------------------------------------------------------->
+
+
     # Step 2: Reduce phase
+    # Printing "Execution of gRPC calls to the Reducer"
+    print("Execution of gRPC calls to the Reducer begins...")
     reduce_responses = asyncio.run(reduce_phase(num_mappers, reducer_stubs, successful_map_indices, is_retry=False))
+
+    # Printing ("gRPC response for each reducer")
+    print(f'reduce_responses (success): {reduce_responses[0].success}')
 
     # Check if all reducers have completed their task
     successful_reduce_indices = [i for i, response in enumerate(reduce_responses) if not isinstance(response, Exception) and response.success]
-    print(successful_reduce_indices, num_reducers)
     if len(successful_reduce_indices) < num_reducers:
         print("Error in reducer phase. Retrying with other reducers.")
         reducer_stubs = [reducer_stubs[i] for i in successful_reduce_indices]
@@ -127,103 +191,44 @@ def run_iteration(input_splits, num_mappers, num_reducers, centroids):
     # print([res.updated_centroids for res in reduce_responses])
     compiled_reducers_output_ = [{data_point.centroid_id: [data_point.x, data_point.y]} for res in reduce_responses for data_point in res.updated_centroids]
 
-    '''
-    parse output files generated by reducers
-
-    Input: 
-    centroid_id x y
-
-    Output:
-    [{0: [1.0, 2.0], 1: [3.0, 4.0]}, {2: [5.0, 6.0], 3: [7.0, 8.0]}]
-    '''
-    # compiled_reducers_output_ = []
-    # for i in range(num_reducers):
-    #     with open(f'Data/Reducer/R{i}/reducer_output.txt', 'r') as f:
-    #         reducer_output = {}
-    #         for line in f:
-    #             parts = line.strip().split()
-    #             centroid_id = int(parts[0])
-    #             x = float(parts[1])
-    #             y = float(parts[2])
-    #             reducer_output[centroid_id] = [x, y]
-    #         compiled_reducers_output_.append(reducer_output)
-
     return compile_centroids(compiled_reducers_output_)
-
-
-
-# def run_iteration(input_splits, num_mappers, num_reducers, centroids):
-#     # Initialize gRPC channels to mappers
-#     mapper_channels = [grpc.insecure_channel(f'localhost:{50051 + i}') for i in range(num_mappers)]
-#     mapper_stubs = [master_mapper_reducer_pb2_grpc.MapperStub(channel) for channel in mapper_channels]
-
-#     # Initialize gRPC channels to reducers
-#     reducer_channels = [grpc.insecure_channel(f'localhost:{50051 + num_mappers + i}') for i in range(num_reducers)]
-#     reducer_stubs = [master_mapper_reducer_pb2_grpc.ReducerStub(channel) for channel in reducer_channels]
-    
-#     # Step 1: Map phase and Partition phase
-#     map_response_count = 0
-#     for mapper_id, mapper_stub in enumerate(mapper_stubs):
-#         response_centroids = [master_mapper_reducer_pb2.Point(x = a, y = b) for a,b in centroids] # convert centroids to protobuf format
-#         mapper_request = master_mapper_reducer_pb2.MapRequest(start_index=[x[0] for x in input_splits], end_index = [x[1] for x in input_splits], num_reducers = num_reducers, centroids = response_centroids) # create request
-#         response = mapper_stub.Map(mapper_request)
-#         if response.success:
-#             map_response_count += 1
-
-#     # for fault tolarence, first check if all mappers have completed their task
-#     if map_response_count != num_mappers:
-#         print("Error in map phase")
-
-#     reduce_response_count = 0
-#     for reducer_id, reducer_stub in enumerate(reducer_stubs):
-#         reducer_request = master_mapper_reducer_pb2.StartReduceRequest(mapper_ids = list(range(num_mappers)))
-#         response = reducer_stub.StartReduce(reducer_request)
-#         if response.success:
-#             reduce_response_count += 1
-
-#     if reduce_response_count != num_reducers:
-#         print("Error in reducer phase")
-
-
-#     '''
-#     parse output files generated by reducers
-
-#     Input: 
-#     centroid_id x y
-
-#     Output:
-#     [{0: [1.0, 2.0], 1: [3.0, 4.0]}, {2: [5.0, 6.0], 3: [7.0, 8.0]}]
-#     '''
-#     compiled_reducers_output_ = []
-#     for i in range(num_reducers):
-#         with open(f'Data/Reducer/R{i}/reducer_output.txt', 'r') as f:
-#             reducer_output = {}
-#             for line in f:
-#                 parts = line.strip().split()
-#                 centroid_id = int(parts[0])
-#                 x = float(parts[1])
-#                 y = float(parts[2])
-#                 reducer_output[centroid_id] = [x, y]
-#             compiled_reducers_output_.append(reducer_output)
-
-#     return compile_centroids(compiled_reducers_output_)
-
 
 
 if __name__ == '__main__':
 
+    # File locations
     input_data_points_filepath = "Data/Input/points.txt"
     centroids_file_path = "Data/centroids.txt"
     centroids = []
 
-    # Input data points
+    # Input data points are read
     with open(input_data_points_filepath, 'r') as f:
         input_data_points = [list(map(float, line.strip().split(','))) for line in f]
     
-    # Inputs
+    # Inputs are taken
     inputs = [int(x) for x in sys.argv[1:5]]
     num_mappers, num_reducers, num_iterations, num_clusters = inputs
 
+    # Make Directories are made
+    for i in range(num_mappers):
+        os.makedirs(f'Data/Mapper/M{i}', exist_ok=True)
+    for i in range(num_reducers):
+        os.makedirs(f'Data/Reducer/R{i}', exist_ok=True)
+
+    # Input splits are obtained
+    input_splits = utils.split_input_data(len(input_data_points), num_mappers)
+
+    # Initial Centroids are generated randomly
+    with open(centroids_file_path, 'w') as f:
+        for _ in range(num_clusters):
+            centroid = random.choice(input_data_points)
+            centroids.append(centroid)
+            f.write(f'Initial centroid point{_}: ' + ','.join(map(str, centroid)) + '\n')
+    
+    # Printing the "Randomly initialized centroids"
+    print(f'Initial centroids: {centroids}')
+    
+    # Dumping the inputs to a file
     dump_file = 'test_outputs/dump.txt'
     dump_file = open(dump_file, 'w')
     dump_file.write(f'Input data points: {input_data_points}\n')
@@ -231,35 +236,30 @@ if __name__ == '__main__':
     dump_file.write(f'Number of reducers: {num_reducers}\n')
     dump_file.write(f'Number of iterations: {num_iterations}\n')
     dump_file.write(f'Number of clusters: {num_clusters}\n')
-
-    # Make Directories
-    for i in range(num_mappers):
-        os.makedirs(f'Data/Mapper/M{i}', exist_ok=True)
-    for i in range(num_reducers):
-        os.makedirs(f'Data/Reducer/R{i}', exist_ok=True)
-
-    # Input splits
-    input_splits = utils.split_input_data(len(input_data_points), num_mappers)
     dump_file.write(f'Input splits generated: {input_splits}\n')
-
-    # Initial Centroids
-    with open(centroids_file_path, 'w') as f:
-        for _ in range(num_clusters):
-            centroid = random.choice(input_data_points)
-            centroids.append(centroid)
-            f.write(f'Initial centroid point{_}: ' + ','.join(map(str, centroid)) + '\n')
     dump_file.write(f'Initial centroids: {centroids}\n')
 
     # Iterations and convergence
     for i in range(num_iterations):
+
+        # Printing and dumping the "Iteration Number"
+        print(f'\nIteration {i + 1}\n')
         dump_file.write(f'\nIteration {i + 1}: \n')
-        print(f'Iteration {i + 1}')
+
         updated_centroids = run_iteration(input_splits, num_mappers, num_reducers, centroids)
-        dump_file.write(f'Updated centroids for iteration_{i}: {updated_centroids}\n')
-        if updated_centroids == centroids:
-            break
+
+        # Printing and dumping the updated centroids after every iteration
+        print(f'\nUpdated centroids for iteration_{i + 1}: {updated_centroids}')
+        dump_file.write(f'Updated centroids for iteration_{i + 1}: {updated_centroids}\n')
+
+        # Commenting for now to avoid premature convergence
+        # if updated_centroids == centroids:
+        #     break
+
         centroids = updated_centroids
+    
+    # Dumping the final centroids to a file
     dump_file.write(f'\nFinal centroids after {i + 1} iterations: {centroids}\n')
     dump_file.close()
 
-    print(f'Final centroids after {i + 1} iterations: {centroids}')
+    print(f'Final centroids after all iterations: {centroids}')
