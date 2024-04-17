@@ -18,6 +18,7 @@ message MapRequest {
   repeated int32 end_index = 2;
   int32 num_reducers = 3;
   repeated Point centroids = 4;
+  bool is_retry = 5;
 }
 
 message MapResponse {
@@ -34,10 +35,12 @@ message ReturnDataResponse {
 
 message StartReduceRequest {
   repeated int32 mapper_ids = 1;
+  bool is_retry = 2;
 }
 
 message StartReduceResponse {
-  bool success = 1;
+  repeated DataPoint updated_centroids = 1;
+  bool success = 2;
 }
 
 

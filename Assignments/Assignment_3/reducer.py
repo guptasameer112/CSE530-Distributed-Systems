@@ -17,7 +17,7 @@ def calculate_new_centroid(points):
     Output:
     [5.32, 3.02]
     '''
-    print("Points obtained in reducer: ", points)
+    # print("Points obtained in reducer: ", points)
     return np.mean(points, axis=0)
 
 # Implement the Shuffle and Sort function
@@ -39,7 +39,7 @@ def shuffle_and_sort(data_point_to_centroid_map):
     return sorted_data_point_to_centroid_map
 
 # Implement the Reduce function
-def reduce_function(reducer_id, sorted_results):
+def reduce_function(reducer_id, sorted_results, is_retry):
     '''
     This function reads the sorted results and reduces them to update the centroids, also store the updated centroids in a file
     
@@ -53,9 +53,14 @@ def reduce_function(reducer_id, sorted_results):
     for centroid_id, points in sorted_results.items():
         updated_centroids[centroid_id] = calculate_new_centroid(points)
 
-    with open(f'Data/Reducer/R{reducer_id}/reducer_output.txt', 'w') as f:
-        for centroid_id, centroid in updated_centroids.items():
-            f.write(f'{centroid_id} {centroid[0]} {centroid[1]}\n')
+    if is_retry:
+        with open(f'Data/Reducer/R{reducer_id}/reducer_output.txt', 'a') as f:
+            for centroid_id, centroid in updated_centroids.items():
+                f.write(f'{centroid_id} {centroid[0]} {centroid[1]}\n')
+    else:
+        with open(f'Data/Reducer/R{reducer_id}/reducer_output.txt', 'w') as f:
+            for centroid_id, centroid in updated_centroids.items():
+                f.write(f'{centroid_id} {centroid[0]} {centroid[1]}\n')
     return updated_centroids
 
 # Reducer service
@@ -74,19 +79,22 @@ class ReducerServicer(master_mapper_reducer_pb2_grpc.ReducerServicer):
             mapper_request = master_mapper_reducer_pb2.ReturnDataRequest(reducer_id=self.reducer_id)
             response = stub.ReturnData(mapper_request)
 
+            # print(response)
+
             data_point_to_centroid_map.extend([(data_point.centroid_id, [data_point.x, data_point.y]) for data_point in response.data_points])
+            # print(data_point_to_centroid_map)
 
         # Call Shuffle and Sort function
         sorted_results = shuffle_and_sort(data_point_to_centroid_map)
         print(f"Reducer {self.reducer_id} sorted results: {sorted_results}")
 
         # # Call Reduce function
-        updated_centroids = reduce_function(self.reducer_id, sorted_results)
+        updated_centroids = reduce_function(self.reducer_id, sorted_results, request.is_retry)
         print(f"Reducer {self.reducer_id} updated centroids: {updated_centroids}")
         
         self.sorted_results = {}
-
-        return master_mapper_reducer_pb2.StartReduceResponse(success=True)
+        # print(updated_centroids.items())
+        return master_mapper_reducer_pb2.StartReduceResponse(updated_centroids=[master_mapper_reducer_pb2.DataPoint(centroid_id=centroid_id, x=centroid[0], y=centroid[1]) for centroid_id, centroid in updated_centroids.items()], success=True)
 
 def serve(reducer_id, port):
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))

@@ -4,6 +4,8 @@ from concurrent import futures
 import master_mapper_reducer_pb2
 import master_mapper_reducer_pb2_grpc
 import numpy as np
+import random
+import time
 
 def calculate_distance(point1, point2):
     '''
@@ -77,6 +79,25 @@ def write_partitions_to_files(data_point_to_centroid_map, mapper_id, num_reducer
         with open(file_path, 'a') as file:
             file.write(f'{centroid_id}\t{point[0]}\t{point[1]}\n')
 
+def write_partitions_to_files_retry(data_point_to_centroid_map, mapper_id, num_reducers):
+    '''
+    Based on hash of the centroid_id, write the data points to the respective partition files
+    
+    Input:
+    mapped_results: [(0, [1.0, 2.0]), (1, [3.0, 4.0]), (0, [5.0, 6.0]), (1, [7.0, 8.0]), ...]
+    mapper_id: int
+    num_reducers: int
+    
+    Output:
+    partition files
+    '''
+
+    for centroid_id, point in data_point_to_centroid_map:
+        reducer_id = centroid_id % num_reducers
+        file_path = f'Data/Mapper/M{mapper_id}/partition_{reducer_id}.txt'
+        with open(file_path, 'a') as file:
+            file.write(f'{centroid_id}\t{point[0]}\t{point[1]}\n')
+
 # Mapper service
 class MapperServicer(master_mapper_reducer_pb2_grpc.MapperServicer):
     def __init__(self, mapper_id):
@@ -86,6 +107,7 @@ class MapperServicer(master_mapper_reducer_pb2_grpc.MapperServicer):
 
     def Map(self, request, context):
         # Obtain line numbers and centroids from gRPC request
+        time.sleep(5)
         line_numbers = [(x, y) for x,y in zip(request.start_index, request.end_index)]
         self.centroids = [[point.x, point.y] for point in request.centroids]
 
@@ -98,8 +120,11 @@ class MapperServicer(master_mapper_reducer_pb2_grpc.MapperServicer):
             # print(f'Mapper {self.mapper_id} processed {len(data_point_to_centroid_map)} data points and mapped them to centroids.')
             # print(f"first 5 data points from mapper {self.mapper_id} are: {self.data_point_to_centroid_map[:5]}")
 
+            if (request.is_retry):
+                write_partitions_to_files_retry(data_point_to_centroid_map, self.mapper_id, num_reducers=request.num_reducers)
             # Call Partition function
-            write_partitions_to_files(data_point_to_centroid_map, self.mapper_id, num_reducers=request.num_reducers)
+            else:
+                write_partitions_to_files(data_point_to_centroid_map, self.mapper_id, num_reducers=request.num_reducers)
             # print(f'Mapper {self.mapper_id} wrote partitions to files.')
             return master_mapper_reducer_pb2.MapResponse(success=True)
         
