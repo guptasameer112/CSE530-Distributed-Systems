@@ -1,14 +1,78 @@
+# Assignment 3
+Implement distributed K-means clustering using Hadoop MapReduce.
 
+## Implementation Details
 
+### 1. Master:
+``` bash
+    python master.py <num_of_mappers> <num_of_reducers> <num_of_iterations> <num_of_clusters>
+```
 
+#### Functions present in the master:
+1. compile_centroids
+2. run_iterations
+3. rpc
 
+#### Steps:
+1. Takes input from the user.
+2. Creates the input chunks and distributes them to the mappers.
+3. Collects the output from the reducers.
+4. Updates the centroids and repeats the process for the specified number of iterations.
+5. Outputs the final centroids.
 
-# Testing: Configurations
+<b>Note:</b>
+1. Split is distributed using the number of mappers - equally.
+2. We have performed scenario 1, as we give the indices to mappers.
+
+### 2. Mapper:
+``` bash
+    python mapper.py <mapper_id> <port>
+```
+#### Functions present in the mapper:
+1. calculate_distance
+2. map_function
+3. write_partitions_to_files
+
+#### Steps:
+1. Reads the input from the master.
+2. Calculates the distance of each point from the centroids.
+3. Assigns the point to the nearest centroid.
+4. Writes the output to the intermediate files.
+5. Sends the data assigned to the reducer when asked.
+   
+<b>Note:</b> 
+1. Each mapper runs as a different process.
+2. Mappers are running in parallel.
+3. By the partition function, keys are distributed equally using (key % num_of_reducers). 
+
+### 3. Reducer:
+``` bash
+    python reducer.py <reducer_id> <port>
+```
+
+#### Functions present in the reducer:
+1. calculate_new_centroids
+2. shuffle_and_sort
+3. reduce_function
+
+#### Steps:
+1. Reads the input from the mapper.
+2. Calculates the new centroids.
+3. Writes the output to the intermediate files.
+4. Sends the data to the master when done.
+
+<b>Note:</b>
+1. Each reducer runs as a different process.
+2. Reducers are running in parallel.
+3. Reducers obtain their information through gRPC calls to the mapper and don't have direct access to the intermediate files.
+4. Master sent a reduce request to which the reducer replies with the data (the alternative scenario in the assignment).
+
+## Testing: Configurations
 
     input:
     (# mappers, # reducers, # iterations, # clusters)
     
-## Test 1:
+### Test 1:
     points = 
 
     0.4,7.2
@@ -71,7 +135,7 @@ Iteration 3:
 
 <hr>
 
-## Test 2:
+### Test 2:
     points = 
 
     2.4253966361924117, 14.200140998826638 
@@ -124,7 +188,7 @@ Iteration 3:
 
 <hr>
 
-## Test 3:
+### Test 3:
     points = 
 
     1.4302438269507878, 2.4735967228568025 
@@ -178,3 +242,10 @@ Iteration 3:
 
     obtained output (near correct): 
     [[-7.265038403147703, -3.2273278195559705], [1.2240224515657234, -1.643594583801883]]
+
+## Team Members
+1. Harshil (2021050) 
+2. Abhay (2021508)
+3. Sameer (2021093)
+
+<!-- THE END -->

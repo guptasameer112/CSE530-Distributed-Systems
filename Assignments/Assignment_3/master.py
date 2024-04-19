@@ -6,6 +6,7 @@ import master_mapper_reducer_pb2
 import master_mapper_reducer_pb2_grpc
 import random
 import asyncio
+import time
 
 def compile_centroids(reducer_outputs):
     '''
@@ -86,7 +87,6 @@ async def map_phase(input_splits, num_mappers, num_reducers, centroids, mapper_s
         return responses
     except Exception as e:
         print(f"Error in map phase. Retrying with other mappers.")
-        print(e)
 
 async def reduce_rpc(reducer_stub, reducer_request, max_retries=10):
     '''
@@ -109,7 +109,7 @@ async def reduce_rpc(reducer_stub, reducer_request, max_retries=10):
         count += 1
     return res
 
-async def reduce_phase(num_mappers, reducer_stubs, successful_map_indices,  max_reduce_retries=3, is_retry=False):
+async def reduce_phase(num_mappers, reducer_stubs, successful_map_indices, reducer_ids, max_reduce_retries=10, is_retry=False):
     '''
     Reduce phase of the KMeans algorithm
     
@@ -127,13 +127,13 @@ async def reduce_phase(num_mappers, reducer_stubs, successful_map_indices,  max_
     try:
         tasks = []
         for reducer_id, reducer_stub in enumerate(reducer_stubs):
-            reducer_request = master_mapper_reducer_pb2.StartReduceRequest(mapper_ids=successful_map_indices, is_retry=is_retry)
+            reducer_request = master_mapper_reducer_pb2.StartReduceRequest(mapper_ids=successful_map_indices,reducer_id=reducer_ids[reducer_id], is_retry=is_retry)
             tasks.append(reduce_rpc(reducer_stub, reducer_request, max_reduce_retries))
         responses = await asyncio.gather(*tasks, return_exceptions=True)
         return responses
     except Exception as e:
         print(f"Error in reducer phase. Retrying with other reducers.")
-    raise RuntimeError("Max retry count exceeded for reduce phase.")
+    # raise RuntimeError("Max retry count exceeded for reduce phase.")
 
 def run_iteration(input_splits, num_mappers, num_reducers, centroids):
     # Initialize gRPC channels to mappers
@@ -148,11 +148,12 @@ def run_iteration(input_splits, num_mappers, num_reducers, centroids):
 
     # Step 1: Map phase and Partition phase
     # Printing "Execution of gRPC calls to the Mapper"
+    # time.sleep(5)
     print("Execution of gRPC calls to the Mapper begins...")
     map_responses = asyncio.run(map_phase(input_splits, num_mappers, num_reducers, centroids, mapper_stubs, is_retry=False))
 
     # Printing ("gRPC response for each mapper")
-    print(f'map_responses:{map_responses}')
+    print(f'map_responses: {[f"Map{i} Response: {response}" for i, response in enumerate(map_responses)]}')
     # Check if all mappers have completed their task
     successful_map_indices = [i for i, response in enumerate(map_responses) if not isinstance(response, Exception) and response.success]
     if len(successful_map_indices) < num_mappers:
@@ -167,7 +168,8 @@ def run_iteration(input_splits, num_mappers, num_reducers, centroids):
             else:
                 updated_input_splits.append((0, 0))
 
-        map_responses = asyncio.run(map_phase(updated_input_splits, len(successful_map_indices), num_reducers, centroids, mapper_stubs, is_retry=True))
+        new_map_responses = asyncio.run(map_phase(updated_input_splits, len(successful_map_indices), num_reducers, centroids, mapper_stubs, is_retry=True))
+        map_responses = [map_responses[i] if i in successful_map_indices else new_map_responses.pop(0) for i in range(num_mappers)]
 
 
     # <------------------------------------------------------------------------------------------------------------->
@@ -176,19 +178,25 @@ def run_iteration(input_splits, num_mappers, num_reducers, centroids):
     # Step 2: Reduce phase
     # Printing "Execution of gRPC calls to the Reducer"
     print("Execution of gRPC calls to the Reducer begins...")
-    reduce_responses = asyncio.run(reduce_phase(num_mappers, reducer_stubs, successful_map_indices, is_retry=False))
+    reduce_responses = asyncio.run(reduce_phase(num_mappers, reducer_stubs, successful_map_indices, list(range(num_reducers)), is_retry=False))
 
     # Printing ("gRPC response for each reducer")
-    print(f'reduce_responses (success): {reduce_responses[0].success}')
+    print(f'reduce_responses (success): {[f"Reducer{i} response: {response.success}" for i, response in enumerate(reduce_responses) if not isinstance(response, Exception) and response.success]}')
+
 
     # Check if all reducers have completed their task
     successful_reduce_indices = [i for i, response in enumerate(reduce_responses) if not isinstance(response, Exception) and response.success]
     if len(successful_reduce_indices) < num_reducers:
         print("Error in reducer phase. Retrying with other reducers.")
         reducer_stubs = [reducer_stubs[i] for i in successful_reduce_indices]
-        reduce_responses = asyncio.run(reduce_phase(num_mappers, reducer_stubs, successful_map_indices, is_retry=True))
+        unsuccessful_reducers = [i for i in range(num_reducers) if i not in successful_reduce_indices]
+        updated_reducer_ids = []
+        for i in range(num_reducers):
+            if i in successful_reduce_indices and len(unsuccessful_reducers) > 0:
+                updated_reducer_ids.append(unsuccessful_reducers.pop(0))
+        new_reduce_responses = asyncio.run(reduce_phase(num_mappers, reducer_stubs, successful_map_indices, updated_reducer_ids, is_retry=True))
+        reduce_responses = [reduce_responses[i] if i in successful_reduce_indices else new_reduce_responses.pop(0) for i in range(num_reducers)]
 
-    # print([res.updated_centroids for res in reduce_responses])
     compiled_reducers_output_ = [{data_point.centroid_id: [data_point.x, data_point.y]} for res in reduce_responses for data_point in res.updated_centroids]
 
     return compile_centroids(compiled_reducers_output_)

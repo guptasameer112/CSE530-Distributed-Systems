@@ -111,7 +111,6 @@ class MapperServicer(master_mapper_reducer_pb2_grpc.MapperServicer):
         self.num_reducers = 0
 
     def Map(self, request, context):
-        # time.sleep(5)
         line_numbers = [(x, y) for x,y in zip(request.start_index, request.end_index)]
         self.centroids = [[point.x, point.y] for point in request.centroids]
 

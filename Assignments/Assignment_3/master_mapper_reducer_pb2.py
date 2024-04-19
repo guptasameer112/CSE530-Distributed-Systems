@@ -14,7 +14,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1bmaster_mapper_reducer.proto\"\x1d\n\x05Point\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\"6\n\tDataPoint\x12\x13\n\x0b\x63\x65ntroid_id\x18\x01 \x01(\x05\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\"w\n\nMapRequest\x12\x13\n\x0bstart_index\x18\x01 \x03(\x05\x12\x11\n\tend_index\x18\x02 \x03(\x05\x12\x14\n\x0cnum_reducers\x18\x03 \x01(\x05\x12\x19\n\tcentroids\x18\x04 \x03(\x0b\x32\x06.Point\x12\x10\n\x08is_retry\x18\x05 \x01(\x08\"\x1e\n\x0bMapResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\"\'\n\x11ReturnDataRequest\x12\x12\n\nreducer_id\x18\x01 \x01(\x05\"5\n\x12ReturnDataResponse\x12\x1f\n\x0b\x64\x61ta_points\x18\x01 \x03(\x0b\x32\n.DataPoint\":\n\x12StartReduceRequest\x12\x12\n\nmapper_ids\x18\x01 \x03(\x05\x12\x10\n\x08is_retry\x18\x02 \x01(\x08\"M\n\x13StartReduceResponse\x12%\n\x11updated_centroids\x18\x01 \x03(\x0b\x32\n.DataPoint\x12\x0f\n\x07success\x18\x02 \x01(\x08\x32\x65\n\x06Mapper\x12\"\n\x03Map\x12\x0b.MapRequest\x1a\x0c.MapResponse\"\x00\x12\x37\n\nReturnData\x12\x12.ReturnDataRequest\x1a\x13.ReturnDataResponse\"\x00\x32\x45\n\x07Reducer\x12:\n\x0bStartReduce\x12\x13.StartReduceRequest\x1a\x14.StartReduceResponse\"\x00\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1bmaster_mapper_reducer.proto\"\x1d\n\x05Point\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\"6\n\tDataPoint\x12\x13\n\x0b\x63\x65ntroid_id\x18\x01 \x01(\x05\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\"w\n\nMapRequest\x12\x13\n\x0bstart_index\x18\x01 \x03(\x05\x12\x11\n\tend_index\x18\x02 \x03(\x05\x12\x14\n\x0cnum_reducers\x18\x03 \x01(\x05\x12\x19\n\tcentroids\x18\x04 \x03(\x0b\x32\x06.Point\x12\x10\n\x08is_retry\x18\x05 \x01(\x08\"\x1e\n\x0bMapResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\"\'\n\x11ReturnDataRequest\x12\x12\n\nreducer_id\x18\x01 \x01(\x05\"5\n\x12ReturnDataResponse\x12\x1f\n\x0b\x64\x61ta_points\x18\x01 \x03(\x0b\x32\n.DataPoint\"N\n\x12StartReduceRequest\x12\x12\n\nmapper_ids\x18\x01 \x03(\x05\x12\x12\n\nreducer_id\x18\x02 \x01(\x05\x12\x10\n\x08is_retry\x18\x03 \x01(\x08\"M\n\x13StartReduceResponse\x12%\n\x11updated_centroids\x18\x01 \x03(\x0b\x32\n.DataPoint\x12\x0f\n\x07success\x18\x02 \x01(\x08\x32\x65\n\x06Mapper\x12\"\n\x03Map\x12\x0b.MapRequest\x1a\x0c.MapResponse\"\x00\x12\x37\n\nReturnData\x12\x12.ReturnDataRequest\x1a\x13.ReturnDataResponse\"\x00\x32\x45\n\x07Reducer\x12:\n\x0bStartReduce\x12\x13.StartReduceRequest\x1a\x14.StartReduceResponse\"\x00\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -34,11 +34,11 @@ if _descriptor._USE_C_DESCRIPTORS == False:
   _globals['_RETURNDATARESPONSE']._serialized_start=312
   _globals['_RETURNDATARESPONSE']._serialized_end=365
   _globals['_STARTREDUCEREQUEST']._serialized_start=367
-  _globals['_STARTREDUCEREQUEST']._serialized_end=425
-  _globals['_STARTREDUCERESPONSE']._serialized_start=427
-  _globals['_STARTREDUCERESPONSE']._serialized_end=504
-  _globals['_MAPPER']._serialized_start=506
-  _globals['_MAPPER']._serialized_end=607
-  _globals['_REDUCER']._serialized_start=609
-  _globals['_REDUCER']._serialized_end=678
+  _globals['_STARTREDUCEREQUEST']._serialized_end=445
+  _globals['_STARTREDUCERESPONSE']._serialized_start=447
+  _globals['_STARTREDUCERESPONSE']._serialized_end=524
+  _globals['_MAPPER']._serialized_start=526
+  _globals['_MAPPER']._serialized_end=627
+  _globals['_REDUCER']._serialized_start=629
+  _globals['_REDUCER']._serialized_end=698
 # @@protoc_insertion_point(module_scope)

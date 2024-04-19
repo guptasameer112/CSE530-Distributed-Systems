@@ -6,6 +6,7 @@ import numpy as np
 import grpc
 import master_mapper_reducer_pb2
 import master_mapper_reducer_pb2_grpc
+import random
 
 dump_file = 'test_outputs/dump.txt'
 dump_file = open(dump_file, 'w')
@@ -69,7 +70,6 @@ class ReducerServicer(master_mapper_reducer_pb2_grpc.ReducerServicer):
         self.sorted_results = {}
 
     def StartReduce(self, request, context):
-
         data_point_to_centroid_map = [] 
         for mapper_id in request.mapper_ids:
             channel = grpc.insecure_channel(f'localhost:{50051 + mapper_id}')
@@ -77,7 +77,8 @@ class ReducerServicer(master_mapper_reducer_pb2_grpc.ReducerServicer):
 
             # Printing that the reducer is requesting data from the mapper
             print(f"Reducer {self.reducer_id} is requesting data from Mapper {mapper_id}\n")
-            mapper_request = master_mapper_reducer_pb2.ReturnDataRequest(reducer_id=self.reducer_id)
+
+            mapper_request = master_mapper_reducer_pb2.ReturnDataRequest(reducer_id=request.reducer_id)
             # Printing that the reducer has received the data from the mapper
             print(f"Reducer {self.reducer_id} has received the data from Mapper {mapper_id}\n")
             response = stub.ReturnData(mapper_request)

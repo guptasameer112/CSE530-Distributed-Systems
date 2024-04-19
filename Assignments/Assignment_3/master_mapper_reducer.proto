@@ -35,7 +35,8 @@ message ReturnDataResponse {
 
 message StartReduceRequest {
   repeated int32 mapper_ids = 1;
-  bool is_retry = 2;
+  int32 reducer_id = 2;
+  bool is_retry = 3;
 }
 
 message StartReduceResponse {
